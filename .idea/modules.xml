@@ -5,6 +5,13 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/IntelliJ_Plugin_with_Compose.iml" filepath="$PROJECT_DIR$/.idea/modules/IntelliJ_Plugin_with_Compose.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/IntelliJ_Plugin_with_Compose.main.iml" filepath="$PROJECT_DIR$/.idea/modules/IntelliJ_Plugin_with_Compose.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/IntelliJ_Plugin_with_Compose.test.iml" filepath="$PROJECT_DIR$/.idea/modules/IntelliJ_Plugin_with_Compose.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Project_Switcher.iml" filepath="$PROJECT_DIR$/.idea/modules/Project_Switcher.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Project_Switcher.main.iml" filepath="$PROJECT_DIR$/.idea/modules/Project_Switcher.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Project_Switcher.test.iml" filepath="$PROJECT_DIR$/.idea/modules/Project_Switcher.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/build-logic/build-logic.iml" filepath="$PROJECT_DIR$/.idea/modules/build-logic/build-logic.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/build-logic/convention/build-logic.convention.iml" filepath="$PROJECT_DIR$/.idea/modules/build-logic/convention/build-logic.convention.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/build-logic/convention/build-logic.convention.main.iml" filepath="$PROJECT_DIR$/.idea/modules/build-logic/convention/build-logic.convention.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/build-logic/convention/build-logic.convention.test.iml" filepath="$PROJECT_DIR$/.idea/modules/build-logic/convention/build-logic.convention.test.iml" />
     </modules>
   </component>
 </project>
