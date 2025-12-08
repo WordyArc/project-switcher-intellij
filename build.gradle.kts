@@ -10,8 +10,13 @@ plugins {
     alias(libs.plugins.composeCompiler) // Gradle Compose Compiler Plugin
 }
 
-group = providers.gradleProperty("pluginGroup").get()
-version = providers.gradleProperty("pluginVersion").get()
+group = "dev.owlmajin.project.switcher"
+version = "0.1.0"
+val pluginRepositoryUrl = "https://github.com/WordyArc/ProjectSwitcher"
+val pluginSinceBuild = "253"
+val pluginName= "Project Switcher"
+val platformVersion = "253.28294.325"
+
 
 kotlin {
     jvmToolchain(21)
@@ -27,13 +32,7 @@ kotlin {
 
 repositories {
     mavenCentral()
-
-    // IntelliJ Platform Gradle Plugin Repositories Extension -
-    // read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-repositories-extension.html
-    intellijPlatform {
-        defaultRepositories()
-    }
-    // Needed for tests
+    intellijPlatform { defaultRepositories() }
     google()
 }
 
@@ -48,17 +47,9 @@ dependencies {
     testImplementation(libs.skikoAwtRuntimeAll)
 
     intellijPlatform {
-        create(providers.gradleProperty("platformType"), providers.gradleProperty("platformVersion"))
-
-        // Compose support dependencies
+        intellijIdea(platformVersion)
+        bundledPlugin("com.intellij.java")
         composeUI()
-
-        // Plugin Dependencies. Uses `platformBundledPlugins` property from the gradle.properties file for bundled IntelliJ Platform plugins.
-        bundledPlugins(providers.gradleProperty("platformBundledPlugins").map { it.split(',') })
-
-        // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file for plugin from JetBrains Marketplace.
-        plugins(providers.gradleProperty("platformPlugins").map { it.split(',') })
-
         testFramework(TestFrameworkType.Platform)
     }
 }
@@ -66,8 +57,8 @@ dependencies {
 // Configure IntelliJ Platform Gradle Plugin - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-extension.html
 intellijPlatform {
     pluginConfiguration {
-        name = providers.gradleProperty("pluginName")
-        version = providers.gradleProperty("pluginVersion")
+        name = pluginName
+        version = "${project.version}"
 
         // Extract the <!-- Plugin description --> section from README.md and provide for the plugin's manifest
         description = providers.fileContents(layout.projectDirectory.file("README.md")).asText.map {
@@ -96,7 +87,7 @@ intellijPlatform {
         }
 
         ideaVersion {
-            sinceBuild = providers.gradleProperty("pluginSinceBuild")
+            sinceBuild = pluginSinceBuild
         }
     }
 
@@ -116,16 +107,13 @@ intellijPlatform {
     }
 
     pluginVerification {
-        ides {
-            create(providers.gradleProperty("platformType"), providers.gradleProperty("platformVersion"))
-        }
+        ides { recommended() }
     }
 }
 
-// Configure Gradle Changelog Plugin - read more: https://github.com/JetBrains/gradle-changelog-plugin
 changelog {
     groups.empty()
-    repositoryUrl = providers.gradleProperty("pluginRepositoryUrl")
+    repositoryUrl = pluginRepositoryUrl
 }
 
 tasks {
