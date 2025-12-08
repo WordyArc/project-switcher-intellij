@@ -14,12 +14,18 @@ intelliJPlatform = "2.10.5"
 kotlin = "2.1.20"
 
 [libraries]
-junit = { group = "junit", name = "junit", version.ref = "junit" }
-opentest4j = { group = "org.opentest4j", name = "opentest4j", version.ref = "opentest4j" }
-hamcrest = { group = "org.hamcrest", name = "hamcrest", version.ref = "hamcrest" }
-composeuitest = { group = "org.jetbrains.compose.ui", name = "ui-test-junit4-desktop", version.ref = "composeuitest" }
-jewelstandalone = { group = "org.jetbrains.jewel", name = "jewel-int-ui-standalone", version.ref = "jewelstandalone" }
-skikoAwtRuntimeAll = { group = "org.jetbrains.skiko", name = "skiko-awt-runtime-all", version.ref = "skikoAwtRuntimeAll" }
+junit = { module = "junit:junit", version.ref = "junit" }
+opentest4j = { module = "org.opentest4j:opentest4j", version.ref = "opentest4j" }
+hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
+composeuitest = { module = "org.jetbrains.compose.ui:ui-test-junit4-desktop", version.ref = "composeuitest" }
+jewelstandalone = { module = "org.jetbrains.jewel:jewel-int-ui-standalone", version.ref = "jewelstandalone" }
+skikoAwtRuntimeAll = { module = "org.jetbrains.skiko:skiko-awt-runtime-all", version.ref = "skikoAwtRuntimeAll" }
+
+# Gradle plugin artifacts for build-logic (чтобы precompiled script plugin компилился)
+kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+intellijPlatformGradlePlugin = { module = "org.jetbrains.intellij.platform:org.jetbrains.intellij.platform.gradle.plugin", version.ref = "intelliJPlatform" }
+changelogGradlePlugin = { module = "org.jetbrains.changelog:org.jetbrains.changelog.gradle.plugin", version.ref = "changelog" }
+composeCompilerGradlePlugin = { module = "org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin", version.ref = "kotlin" }
 
 
 [plugins]

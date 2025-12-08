@@ -1,7 +1,7 @@
 <idea-plugin>
-    <id>org.jetbrains.plugins.compose.template</id>
-    <name>Compose Template Example</name>
-    <vendor url="https://www.yourcompany.com">YourCompany</vendor>
+    <id>dev.owlmajin.project.switcher</id>
+    <name>Project Switcher</name>
+    <vendor url="https://github.com/WordyArc">owlmajin</vendor>
 
     <depends>com.intellij.modules.compose</depends>
 

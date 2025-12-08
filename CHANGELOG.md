@@ -1,7 +1,5 @@
-<!-- Keep a Changelog guide -> https://keepachangelog.com -->
-
-# IntelliJ Platform Plugin Template Changelog
+# Changelog
 
 ## [Unreleased]
 
-TODO
+[Unreleased]: https://github.com/JetBrains/intellij-platform-compose-plugin-template/commits
