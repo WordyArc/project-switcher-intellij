@@ -15,7 +15,7 @@ version = "0.1.0"
 val pluginRepositoryUrl = "https://github.com/WordyArc/ProjectSwitcher"
 val pluginSinceBuild = "253"
 val pluginName= "Project Switcher"
-val platformVersion = "253.28294.325"
+val platformVersion = "2025.3"
 
 
 kotlin {
