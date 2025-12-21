@@ -49,6 +49,7 @@ dependencies {
     intellijPlatform {
         intellijIdea(platformVersion)
         bundledPlugin("com.intellij.java")
+        bundledPlugin("Git4Idea")
         composeUI()
         testFramework(TestFrameworkType.Platform)
     }

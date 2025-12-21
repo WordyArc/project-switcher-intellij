@@ -15,6 +15,7 @@ sealed interface SwitcherItem {
         val project: Project,
         val isCurrent: Boolean,
         val path: String?,
+        val branch: String?,
     ) : SwitcherItem {
         override val key: String = "open:${project.locationHash}"
     }
@@ -24,6 +25,7 @@ sealed interface SwitcherItem {
         val name: String,
         val path: String,
         val subtitle: String?,
+        val branch: String?,
     ) : SwitcherItem {
         override val key: String = "recent:$path"
     }

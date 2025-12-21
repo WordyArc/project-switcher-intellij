@@ -16,6 +16,7 @@ import com.intellij.ide.ReopenProjectAction
 import com.intellij.openapi.project.Project
 import org.jetbrains.jewel.ui.component.Text
 import java.awt.event.InputEvent
+import androidx.compose.ui.Alignment
 
 @Composable
 fun ProjectSwitcherPopup(
@@ -121,14 +122,18 @@ fun ProjectSwitcherPopup(
                                 else -> "  "
                             }
 
-                        Column(
+                        Row(
                             Modifier
                                 .fillMaxWidth()
                                 .clickable { onSelectOpen(item.project) }
-                                .padding(vertical = 6.dp, horizontal = 6.dp)
+                                .padding(vertical = 4.dp, horizontal = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(prefix + item.project.name)
-                            item.path?.let { Text(it) }
+                            item.branch?.let {
+                                Spacer(Modifier.width(8.dp))
+                                Text("[$it]")
+                            }
                         }
                     }
 
@@ -136,14 +141,18 @@ fun ProjectSwitcherPopup(
                         val isSelected = selectableIdx.getOrNull(selectedPos) == index
                         val prefix = if (isSelected) "› " else "  "
 
-                        Column(
+                        Row(
                             Modifier
                                 .fillMaxWidth()
                                 .clickable { onSelectRecent(item.action, 0) }
-                                .padding(vertical = 6.dp, horizontal = 6.dp)
+                                .padding(vertical = 4.dp, horizontal = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(prefix + item.name)
-                            Text(item.subtitle ?: item.path)
+                            item.branch?.let {
+                                Spacer(Modifier.width(8.dp))
+                                Text("[$it]")
+                            }
                         }
                     }
                 }

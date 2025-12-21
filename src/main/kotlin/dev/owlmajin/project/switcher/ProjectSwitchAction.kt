@@ -8,10 +8,12 @@ import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.io.FileUtil
+import git4idea.repo.GitRepositoryManager
 import org.jetbrains.jewel.bridge.JewelComposePanel
 import org.jetbrains.jewel.bridge.theme.SwingBridgeTheme
 import java.awt.Component
@@ -24,6 +26,42 @@ import java.util.concurrent.atomic.AtomicReference
 class ProjectSwitchAction : DumbAwareAction("Switch Project") {
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+
+    private fun getCurrentBranch(project: Project): String? {
+        return try {
+            // Сначала попробуем через GitRepositoryManager
+            val repositoryManager = GitRepositoryManager.getInstance(project)
+            val branch = repositoryManager.repositories.firstOrNull()?.currentBranchName
+            if (branch != null) return branch
+
+            // Если не получилось, пробуем через файловую систему
+            project.basePath?.let { getCurrentBranchByPath(it) }
+        } catch (e: Exception) {
+            // В случае ошибки пробуем через файловую систему
+            project.basePath?.let { getCurrentBranchByPath(it) }
+        }
+    }
+
+    private fun getCurrentBranchByPath(path: String): String? {
+        return try {
+            val gitDir = File(path, ".git")
+            if (!gitDir.exists()) return null
+
+            val headFile = File(gitDir, "HEAD")
+            if (!headFile.exists()) return null
+
+            val headContent = headFile.readText().trim()
+            when {
+                headContent.startsWith("ref: refs/heads/") ->
+                    headContent.substring("ref: refs/heads/".length)
+                headContent.length >= 7 ->
+                    headContent.substring(0, 7) // Short SHA for detached HEAD
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     override fun actionPerformed(e: AnActionEvent) {
         val currentProject = e.project
@@ -60,11 +98,13 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
                 add(SwitcherItem.Header("Open"))
                 openProjects.forEach { p ->
                     val pPath = p.basePath?.let { FileUtil.toSystemIndependentName(it) }
+                    val branch = getCurrentBranch(p)
                     add(
                         SwitcherItem.OpenProjectItem(
                             project = p,
                             isCurrent = (currentProject != null && currentProject == p),
-                            path = pPath
+                            path = pPath,
+                            branch = branch
                         )
                     )
                 }
@@ -73,12 +113,14 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
             if (recentMeta.isNotEmpty()) {
                 add(SwitcherItem.Header("Recent"))
                 recentMeta.forEach { (name, path, action) ->
+                    val branch = getCurrentBranchByPath(path)
                     add(
                         SwitcherItem.RecentProjectItem(
                             action = action,
                             name = name,
                             path = path,
-                            subtitle = if (name in duplicateNames) path else null
+                            subtitle = if (name in duplicateNames) path else null,
+                            branch = branch
                         )
                     )
                 }
@@ -113,7 +155,7 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
                 )
             }
         }.apply {
-            preferredSize = Dimension(560, 380)
+            preferredSize = Dimension(450, 300)
         }
 
         val popup = JBPopupFactory.getInstance()
@@ -128,7 +170,7 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
             .createPopup()
 
         popupRef.set(popup)
-        popup.showInBestPositionFor(e.dataContext)
+        popup.showCenteredInCurrentWindow(e.project ?: ProjectManager.getInstance().defaultProject)
     }
 
     private fun executeReopen(
