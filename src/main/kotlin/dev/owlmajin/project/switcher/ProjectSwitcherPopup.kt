@@ -6,7 +6,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.intellij.ide.ReopenProjectAction
 import com.intellij.openapi.project.Project
 import org.jetbrains.jewel.ui.component.Text
+import org.jetbrains.jewel.ui.component.TextField
 import java.awt.event.InputEvent
 import java.awt.image.BufferedImage
 import javax.swing.Icon
@@ -31,7 +32,8 @@ fun ProjectSwitcherPopup(
     onSelectOpen: (Project) -> Unit,
     onSelectRecent: (ReopenProjectAction, modifiersEx: Int) -> Unit,
 ) {
-    var query by remember { mutableStateOf("") }
+    val queryState = remember { TextFieldState("") }
+    val query by remember { derivedStateOf { queryState.text.toString() } }
 
     val filtered = remember(items, query) {
         val q = query.trim()
@@ -93,17 +95,35 @@ fun ProjectSwitcherPopup(
                         }
                         true
                     }
-                    else -> false
+                    Key.Backspace -> {
+                        if (query.isNotEmpty()) {
+                            queryState.edit {
+                                replace(length - 1, length, "")
+                            }
+                        }
+                        true
+                    }
+                    else -> {
+                        // Автоматически добавляем печатные символы в строку поиска
+                        val char = ev.utf16CodePoint.toChar()
+                        if (char.isDefined() && !char.isISOControl()) {
+                            queryState.edit {
+                                replace(length, length, char.toString())
+                            }
+                            true
+                        } else {
+                            false
+                        }
+                    }
                 }
             }
     ) {
         Text("Switch Project")
         Spacer(Modifier.size(8.dp))
 
-        BasicTextField(
-            value = query,
-            onValueChange = { query = it },
-            singleLine = true,
+        TextField(
+            state = queryState,
+            placeholder = { Text("Search projects...") },
             modifier = Modifier.fillMaxWidth()
         )
 

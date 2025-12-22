@@ -79,7 +79,6 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
 
         val items: List<SwitcherItem> = buildList {
             if (openProjects.isNotEmpty()) {
-                add(SwitcherItem.Header("Open"))
                 openProjects.forEach { p ->
                     val pPath = p.basePath?.let { FileUtil.toSystemIndependentName(it) }
                     val branch = pPath?.let { getCurrentBranchByPath(it) }
