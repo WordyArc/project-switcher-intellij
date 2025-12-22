@@ -13,7 +13,6 @@ import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.io.FileUtil
-import git4idea.repo.GitRepositoryManager
 import org.jetbrains.jewel.bridge.JewelComposePanel
 import org.jetbrains.jewel.bridge.theme.SwingBridgeTheme
 import java.awt.Component
@@ -26,21 +25,6 @@ import java.util.concurrent.atomic.AtomicReference
 class ProjectSwitchAction : DumbAwareAction("Switch Project") {
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
-
-    private fun getCurrentBranch(project: Project): String? {
-        return try {
-            // Сначала попробуем через GitRepositoryManager
-            val repositoryManager = GitRepositoryManager.getInstance(project)
-            val branch = repositoryManager.repositories.firstOrNull()?.currentBranchName
-            if (branch != null) return branch
-
-            // Если не получилось, пробуем через файловую систему
-            project.basePath?.let { getCurrentBranchByPath(it) }
-        } catch (e: Exception) {
-            // В случае ошибки пробуем через файловую систему
-            project.basePath?.let { getCurrentBranchByPath(it) }
-        }
-    }
 
     private fun getCurrentBranchByPath(path: String): String? {
         return try {
@@ -55,7 +39,7 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
                 headContent.startsWith("ref: refs/heads/") ->
                     headContent.substring("ref: refs/heads/".length)
                 headContent.length >= 7 ->
-                    headContent.substring(0, 7) // Short SHA for detached HEAD
+                    headContent.substring(0, 7)
                 else -> null
             }
         } catch (e: Exception) {
@@ -91,20 +75,21 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
             Triple(name, path, a)
         }.filter { (_, path, _) -> path.isNotBlank() && path !in openPaths }
 
-        val duplicateNames = recentMeta.groupBy { it.first }.filterValues { it.size > 1 }.keys
+        val recentManager = RecentProjectsManagerBase.getInstanceEx()
 
         val items: List<SwitcherItem> = buildList {
             if (openProjects.isNotEmpty()) {
                 add(SwitcherItem.Header("Open"))
                 openProjects.forEach { p ->
                     val pPath = p.basePath?.let { FileUtil.toSystemIndependentName(it) }
-                    val branch = getCurrentBranch(p)
+                    val branch = pPath?.let { getCurrentBranchByPath(it) }
+                    val icon = pPath?.let { recentManager.getProjectIcon(it, true, 20) }
                     add(
                         SwitcherItem.OpenProjectItem(
                             project = p,
                             isCurrent = (currentProject != null && currentProject == p),
-                            path = pPath,
-                            branch = branch
+                            branch = branch,
+                            icon = icon
                         )
                     )
                 }
@@ -112,17 +97,9 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
 
             if (recentMeta.isNotEmpty()) {
                 add(SwitcherItem.Header("Recent"))
-                recentMeta.forEach { (name, path, action) ->
+                recentMeta.forEach { (_, path, action) ->
                     val branch = getCurrentBranchByPath(path)
-                    add(
-                        SwitcherItem.RecentProjectItem(
-                            action = action,
-                            name = name,
-                            path = path,
-                            subtitle = if (name in duplicateNames) path else null,
-                            branch = branch
-                        )
-                    )
+                    add(SwitcherItem.RecentProjectItem(action = action, branch = branch))
                 }
             }
         }

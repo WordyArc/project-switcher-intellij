@@ -4,7 +4,6 @@
     <vendor url="https://github.com/WordyArc">owlmajin</vendor>
 
     <depends>com.intellij.modules.compose</depends>
-    <depends>Git4Idea</depends>
 
     <resource-bundle>messages.ComposeTemplateBundle</resource-bundle>
 

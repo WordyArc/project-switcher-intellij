@@ -1,5 +1,6 @@
 package dev.owlmajin.project.switcher
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
@@ -7,16 +8,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.unit.dp
 import com.intellij.ide.ReopenProjectAction
 import com.intellij.openapi.project.Project
 import org.jetbrains.jewel.ui.component.Text
 import java.awt.event.InputEvent
-import androidx.compose.ui.Alignment
+import java.awt.image.BufferedImage
+import javax.swing.Icon
 
 @Composable
 fun ProjectSwitcherPopup(
@@ -129,7 +134,17 @@ fun ProjectSwitcherPopup(
                                 .padding(vertical = 4.dp, horizontal = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(prefix + item.project.name)
+                            Text(prefix)
+                            item.icon?.let { icon ->
+                                val bitmap = remember(icon) { icon.toImageBitmap() }
+                                Image(
+                                    bitmap = bitmap,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text(item.project.name)
                             item.branch?.let {
                                 Spacer(Modifier.width(8.dp))
                                 Text("[$it]")
@@ -140,6 +155,7 @@ fun ProjectSwitcherPopup(
                     is SwitcherItem.RecentProjectItem -> {
                         val isSelected = selectableIdx.getOrNull(selectedPos) == index
                         val prefix = if (isSelected) "› " else "  "
+                        val name = item.action.projectNameToDisplay
 
                         Row(
                             Modifier
@@ -148,7 +164,17 @@ fun ProjectSwitcherPopup(
                                 .padding(vertical = 4.dp, horizontal = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(prefix + item.name)
+                            Text(prefix)
+                            item.action.projectIcon?.let { icon ->
+                                val bitmap = remember(icon) { icon.toImageBitmap() }
+                                Image(
+                                    bitmap = bitmap,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text(name)
                             item.branch?.let {
                                 Spacer(Modifier.width(8.dp))
                                 Text("[$it]")
@@ -163,11 +189,16 @@ fun ProjectSwitcherPopup(
 
 private fun SwitcherItem.matches(q: String): Boolean = when (this) {
     is SwitcherItem.Header -> true
-    is SwitcherItem.OpenProjectItem ->
-        project.name.contains(q, ignoreCase = true) || (path?.contains(q, true) == true)
+    is SwitcherItem.OpenProjectItem -> {
+        val pPath = project.basePath ?: project.projectFilePath
+        project.name.contains(q, ignoreCase = true) || (pPath?.contains(q, true) == true)
+    }
 
-    is SwitcherItem.RecentProjectItem ->
+    is SwitcherItem.RecentProjectItem -> {
+        val name = action.projectNameToDisplay ?: ""
+        val path = action.projectPath
         name.contains(q, ignoreCase = true) || path.contains(q, ignoreCase = true)
+    }
 }
 
 private fun List<SwitcherItem>.pruneLonelyHeaders(): List<SwitcherItem> {
@@ -189,4 +220,12 @@ private fun List<SwitcherItem>.pruneLonelyHeaders(): List<SwitcherItem> {
         if (hasEntryAfter) out += it
     }
     return out
+}
+
+private fun Icon.toImageBitmap(): ImageBitmap {
+    val bufferedImage = BufferedImage(iconWidth, iconHeight, BufferedImage.TYPE_INT_ARGB)
+    val graphics = bufferedImage.createGraphics()
+    paintIcon(null, graphics, 0, 0)
+    graphics.dispose()
+    return bufferedImage.toComposeImageBitmap()
 }
