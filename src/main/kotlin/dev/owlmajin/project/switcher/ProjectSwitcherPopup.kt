@@ -70,6 +70,13 @@ fun ProjectSwitcherPopup(
             .focusable()
             .onPreviewKeyEvent { ev ->
                 if (ev.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+
+                // Обработка Alt+F2 для toggle (закрытие popup)
+                if (ev.key == Key.F2 && ev.isAltPressed) {
+                    onClose()
+                    return@onPreviewKeyEvent true
+                }
+
                 when (ev.key) {
                     Key.Escape -> { onClose(); true }
                     Key.DirectionDown -> {

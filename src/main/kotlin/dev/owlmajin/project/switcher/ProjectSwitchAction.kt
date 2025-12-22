@@ -24,6 +24,11 @@ import java.util.concurrent.atomic.AtomicReference
 
 class ProjectSwitchAction : DumbAwareAction("Switch Project") {
 
+    companion object {
+        @Volatile
+        private var currentPopup: JBPopup? = null
+    }
+
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     private fun getCurrentBranchByPath(path: String): String? {
@@ -48,6 +53,13 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
     }
 
     override fun actionPerformed(e: AnActionEvent) {
+        // Если popup уже открыт, закрываем его (toggle behavior)
+        val existingPopup = currentPopup
+        if (existingPopup != null && !existingPopup.isDisposed) {
+            existingPopup.cancel()
+            return
+        }
+
         val currentProject = e.project
         val place = e.place.ifBlank { ActionPlaces.UNKNOWN }
 
@@ -105,24 +117,22 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
 
         if (items.none { it is SwitcherItem.OpenProjectItem || it is SwitcherItem.RecentProjectItem }) return
 
-        val popupRef = AtomicReference<JBPopup?>(null)
-
         val panel = JewelComposePanel {
             SwingBridgeTheme {
                 ProjectSwitcherPopup(
                     items = items,
                     currentProjectName = currentProject?.name,
-                    onClose = { popupRef.get()?.cancel() },
+                    onClose = { currentPopup?.cancel() },
                     onSelectOpen = { p ->
-                        popupRef.get()?.cancel()
+                        currentPopup?.cancel()
                         ProjectUtil.focusProjectWindow(p, true)
                     },
                     onSelectRecent = { reopenAction, modifiersEx ->
-                        popupRef.get()?.cancel()
+                        currentPopup?.cancel()
 
                         val src: Component? =
                             (KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner as? Component)
-                                ?: (popupRef.get()?.content as? Component)
+                                ?: (currentPopup?.content as? Component)
 
                         if (src != null) {
                             executeReopen(reopenAction, place, src, modifiersEx)
@@ -145,7 +155,17 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
             .setResizable(false)
             .createPopup()
 
-        popupRef.set(popup)
+        // Устанавливаем currentPopup ПЕРЕД показом
+        currentPopup = popup
+
+        popup.addListener(object : com.intellij.openapi.ui.popup.JBPopupListener {
+            override fun onClosed(event: com.intellij.openapi.ui.popup.LightweightWindowEvent) {
+                if (currentPopup == popup) {
+                    currentPopup = null
+                }
+            }
+        })
+
         popup.showCenteredInCurrentWindow(e.project ?: ProjectManager.getInstance().defaultProject)
     }
 
