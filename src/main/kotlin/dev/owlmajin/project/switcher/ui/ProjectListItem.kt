@@ -1,35 +1,38 @@
 package dev.owlmajin.project.switcher.ui
 
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toComposeImageBitmap
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import dev.owlmajin.project.switcher.data.ProjectData
 import org.jetbrains.jewel.foundation.theme.JewelTheme
-import org.jetbrains.jewel.ui.component.SimpleListItem
 import org.jetbrains.jewel.ui.component.Text
-import org.jetbrains.jewel.ui.theme.colorPalette
+import org.jetbrains.jewel.ui.theme.simpleListItemStyle
+import java.awt.BorderLayout
 import javax.swing.Icon
-import java.awt.RenderingHints
-import java.awt.image.BufferedImage
+import javax.swing.JLabel
+import javax.swing.JPanel
 
 private const val ICON_SIZE_DP = 20
-private val GUTTER_WIDTH = 18.dp
-private val DOT_SIZE = 6.dp
+
+private val INDICATOR_WIDTH = 4.dp
+private val INDICATOR_STROKE = 2.dp
+private val INDICATOR_VPAD = 7.dp
+private val INDICATOR_INSET_START = 2.dp
 
 @Composable
 fun ProjectListItem(
@@ -39,132 +42,140 @@ fun ProjectListItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Hover должен влиять только на "карточку", не на gutter с точкой
-    val cardHoverSource = remember { MutableInteractionSource() }
-    val isHovered = cardHoverSource.collectIsHoveredAsState().value
+    val style = JewelTheme.simpleListItemStyle
 
-    Row(
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
+    val selectedBg = style.colors.backgroundSelectedActive
+    val panelBg = JewelTheme.globalColors.panelBackground
+
+    val itemBackground: Color = when {
+        isSelected -> selectedBg
+        isHovered -> selectedBg.copy(alpha = 0.28f)
+        else -> Color.Transparent
+    }
+
+    val shape = RoundedCornerShape(style.metrics.selectionBackgroundCornerSize)
+
+    // ВАЖНО: Swing не любит полупрозрачные backgrounds как у Compose.
+    // Поэтому для Swing-иконки всегда даём ОПАКОВЫЙ фон:
+    // - если строка прозрачная -> panelBg
+    // - если ховер/селект -> композитим поверх panelBg и получаем alpha=1
+    val iconBackground: Color = if (itemBackground.alpha == 0f) {
+        panelBg
+    } else {
+        compositeOverOpaque(itemBackground, panelBg)
+    }
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            // кликаем по всей строке (включая gutter), но фон/ховер только на карточке
-            .clickable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically
+            .height(JewelTheme.globalMetrics.rowHeight)
+            .hoverable(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
     ) {
-        // ---- GUTTER (точка вне карточки) ----
-        Box(
+        // Абсолютный индикатор: не занимает место, просто рисуется поверх
+        CurrentProjectIndicator(
+            visible = isCurrent,
             modifier = Modifier
-                .width(GUTTER_WIDTH)
-                .fillMaxHeight(),
-            contentAlignment = Alignment.Center
-        ) {
-            CurrentProjectDot(visible = isCurrent)
-        }
+                .align(Alignment.CenterStart)
+                .padding(start = INDICATOR_INSET_START, top = INDICATOR_VPAD, bottom = INDICATOR_VPAD)
+                .width(INDICATOR_WIDTH)
+                .fillMaxHeight()
+        )
 
-        // В Jewel SimpleListItem "active" удобно использовать как "hovered/active row":
-        // - not selected + active -> hover background
-        // - not selected + !active -> transparent/regular background
-        // - selected + active -> selectedActive background
-        SimpleListItem(
-            selected = isSelected,
-            active = isSelected || isHovered,
+        // Карточка (фон/скругления как в SimpleListItemStyle)
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .hoverable(cardHoverSource)
+                .fillMaxSize()
+                .padding(style.metrics.outerPadding)
+                .background(itemBackground, shape)
+                .padding(style.metrics.innerPadding),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ProjectIcon(icon = projectData.icon, size = ICON_SIZE_DP.dp)
+            ProjectIcon(icon = projectData.icon, background = iconBackground)
+            Spacer(Modifier.width(6.dp))
 
-                Spacer(Modifier.width(8.dp))
+            Text(projectData.displayName, maxLines = 1)
+            Spacer(Modifier.weight(1f))
 
-                Text(
-                    projectData.displayName,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
-
-                projectData.branch?.let { branch ->
-                    Spacer(Modifier.width(12.dp))
-                    BranchLabel(branch = branch, isSelected = isSelected)
-                }
+            projectData.branch?.let { branch ->
+                Text(branch, maxLines = 1)
             }
         }
     }
 }
 
 @Composable
-private fun CurrentProjectDot(visible: Boolean) {
-    if (!visible) {
-        Spacer(Modifier.size(DOT_SIZE))
-        return
+private fun CurrentProjectIndicator(visible: Boolean, modifier: Modifier = Modifier) {
+    if (!visible) return
+
+    val c = JewelTheme.globalColors.text.normal.copy(alpha = 0.85f)
+
+    Canvas(modifier = modifier) {
+        val x = size.width / 2f
+        drawLine(
+            color = c,
+            start = androidx.compose.ui.geometry.Offset(x, 0f),
+            end = androidx.compose.ui.geometry.Offset(x, size.height),
+            strokeWidth = INDICATOR_STROKE.toPx(),
+            cap = StrokeCap.Round
+        )
     }
-
-    val dotColor = JewelTheme.colorPalette.grayOrNull(8)
-        ?: Color(0xFF9AA0A6) // безопасный fallback
-
-    Box(
-        modifier = Modifier
-            .size(DOT_SIZE)
-            .clip(CircleShape)
-            .background(dotColor)
-    )
 }
 
+/**
+ * Самый простой Swing-рендер, но без "чёрного фона":
+ * делаем свой opaque JPanel-контейнер и задаём background ему (и label'у как свойство).
+ */
 @Composable
-private fun ProjectIcon(icon: Icon?, size: Dp, modifier: Modifier = Modifier) {
-    if (icon == null) {
-        Spacer(modifier.size(size))
-        return
-    }
+private fun ProjectIcon(icon: Icon?, background: Color) {
+    val awtBg = java.awt.Color(background.toArgb(), true)
 
-    val density = LocalDensity.current
-    val bitmap = remember(icon, size, density) {
-        val targetPx = with(density) { size.roundToPx().coerceAtLeast(1) }
-
-        val srcW = icon.iconWidth.coerceAtLeast(1)
-        val srcH = icon.iconHeight.coerceAtLeast(1)
-
-        val image = BufferedImage(targetPx, targetPx, BufferedImage.TYPE_INT_ARGB)
-        val g2 = image.createGraphics()
-        try {
-            // clear to transparent explicitly
-            g2.composite = java.awt.AlphaComposite.Src
-            g2.color = java.awt.Color(0, 0, 0, 0)
-            g2.fillRect(0, 0, targetPx, targetPx)
-
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
-            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
-
-            val sx = targetPx.toDouble() / srcW.toDouble()
-            val sy = targetPx.toDouble() / srcH.toDouble()
-            g2.scale(sx, sy)
-
-            icon.paintIcon(null, g2, 0, 0)
-        } finally {
-            g2.dispose()
+    SwingPanel(
+        modifier = Modifier.size(ICON_SIZE_DP.dp),
+        factory = {
+            IconHost().apply {
+                setBg(awtBg)
+                label.icon = icon
+            }
+        },
+        update = { host ->
+            host.setBg(awtBg)
+            host.label.icon = icon
         }
-
-        image.toComposeImageBitmap()
-    }
-
-    Image(
-        bitmap = bitmap,
-        contentDescription = null,
-        modifier = modifier.size(size)
     )
 }
 
-@Composable
-private fun BranchLabel(branch: String, isSelected: Boolean) {
-    val base = JewelTheme.colorPalette.grayOrNull(8) ?: Color(0xFF9AA0A6)
-    val color = if (isSelected) base.copy(alpha = 0.95f) else base.copy(alpha = 0.75f)
+private class IconHost : JPanel(BorderLayout()) {
+    val label = JLabel().apply {
+        isOpaque = false
+        border = null
+    }
 
-    Text(
-        branch,
-        color = color,
-        maxLines = 1
-    )
+    init {
+        isOpaque = true
+        border = null
+        add(label, BorderLayout.CENTER)
+    }
+
+    fun setBg(c: java.awt.Color) {
+        background = c
+        label.background = c
+        repaint()
+    }
+}
+
+private fun compositeOverOpaque(fg: Color, bg: Color): Color {
+    val a = fg.alpha.coerceIn(0f, 1f)
+    val inv = 1f - a
+    val r = fg.red * a + bg.red * inv
+    val g = fg.green * a + bg.green * inv
+    val b = fg.blue * a + bg.blue * inv
+    return Color(r, g, b, 1f)
 }
