@@ -1,26 +1,9 @@
 <idea-plugin>
     <id>org.jetbrains.plugins.compose.template</id>
-    <name>Compose Template Example</name>
+    <name>Project Switcher</name>
     <vendor url="https://github.com/WordyArc">owlmajin</vendor>
 
     <depends>com.intellij.modules.compose</depends>
-
-    <resource-bundle>messages.ComposeTemplateBundle</resource-bundle>
-
-    <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="dev.owlmajin.project.switcher.toolWindow.ComposeSamplesToolWindowFactory"
-                    icon="dev.owlmajin.project.switcher.toolWindow.ComposeIcons.ComposeToolWindow"
-                    id="ComposeSamples"/>
-    </extensions>
-
-<!--    <actions>-->
-<!--        <action id="dev.owlmajin.project.switcher.ProjectSwitchAction"-->
-<!--                class="dev.owlmajin.project.switcher.ProjectSwitchAction"-->
-<!--                text="Switch Project">-->
-<!--            <add-to-group group-id="WindowMenu" anchor="first"/>-->
-<!--            <keyboard-shortcut keymap="$default" first-keystroke="alt F2"/>-->
-<!--        </action>-->
-<!--    </actions>-->
 
     <actions>
         <action id="dev.owlmajin.project.switcher.ProjectSwitchAction"
@@ -30,6 +13,5 @@
             <keyboard-shortcut keymap="$default" first-keystroke="alt F2"/>
         </action>
     </actions>
-
 
 </idea-plugin>

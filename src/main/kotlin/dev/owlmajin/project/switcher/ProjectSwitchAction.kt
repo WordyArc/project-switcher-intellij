@@ -1,7 +1,5 @@
 package dev.owlmajin.project.switcher
 
-import com.intellij.ide.RecentProjectsManagerBase
-import com.intellij.ide.ReopenProjectAction
 import com.intellij.ide.impl.ProjectUtil
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
@@ -12,139 +10,76 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
-import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.ui.popup.JBPopupListener
+import com.intellij.openapi.ui.popup.LightweightWindowEvent
+import dev.owlmajin.project.switcher.data.ProjectData
+import dev.owlmajin.project.switcher.data.ProjectDataService
+import dev.owlmajin.project.switcher.data.ProjectsData
+import dev.owlmajin.project.switcher.ui.ProjectSwitcherPopup
 import org.jetbrains.jewel.bridge.JewelComposePanel
 import org.jetbrains.jewel.bridge.theme.SwingBridgeTheme
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.KeyboardFocusManager
 import java.awt.event.KeyEvent
-import java.io.File
-import java.util.concurrent.atomic.AtomicReference
+import javax.swing.JComponent
 
+/**
+ * Action to show project switcher popup.
+ *
+ * Displays a list of open and recent projects, allows navigation and switching between them.
+ */
 class ProjectSwitchAction : DumbAwareAction("Switch Project") {
-
-    companion object {
-        @Volatile
-        private var currentPopup: JBPopup? = null
-    }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
-    private fun getCurrentBranchByPath(path: String): String? {
-        return try {
-            val gitDir = File(path, ".git")
-            if (!gitDir.exists()) return null
-
-            val headFile = File(gitDir, "HEAD")
-            if (!headFile.exists()) return null
-
-            val headContent = headFile.readText().trim()
-            when {
-                headContent.startsWith("ref: refs/heads/") ->
-                    headContent.substring("ref: refs/heads/".length)
-                headContent.length >= 7 ->
-                    headContent.substring(0, 7)
-                else -> null
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
     override fun actionPerformed(e: AnActionEvent) {
-        // Если popup уже открыт, закрываем его (toggle behavior)
-        val existingPopup = currentPopup
-        if (existingPopup != null && !existingPopup.isDisposed) {
-            existingPopup.cancel()
-            return
-        }
+        if (closePopupIfOpen()) return
 
         val currentProject = e.project
-        val place = e.place.ifBlank { ActionPlaces.UNKNOWN }
+        val projectsData = ProjectDataService.collectProjectsData(currentProject)
 
-        val openProjects = ProjectManager.getInstance().openProjects
-            .filter { !it.isDisposed }
-            .sortedBy { it.name.lowercase() }
+        if (projectsData.isEmpty) return
 
-        val openPaths = openProjects.asSequence()
-            .mapNotNull { it.basePath ?: it.projectFilePath }
-            .map { FileUtil.toSystemIndependentName(it) }
-            .toSet()
+        val panel = createPopupPanel(projectsData, e.place)
+        val popup = createPopup(panel)
 
-        val recentActions: List<ReopenProjectAction> =
-            RecentProjectsManagerBase.getInstanceEx()
-                .getRecentProjectsActions(false)
-                .mapNotNull { it as? ReopenProjectAction }
+        currentPopup = popup
+        popup.addListener(PopupCloseListener())
+        popup.showCenteredInCurrentWindow(currentProject ?: ProjectManager.getInstance().defaultProject)
+    }
 
-        val recentMeta = recentActions.map { a ->
-            val path = FileUtil.toSystemIndependentName(a.projectPath)
-            val name: String =
-                a.projectName?.takeIf { it.isNotBlank() }
-                    ?: a.projectDisplayName?.takeIf { it.isNotBlank() }
-                    ?: File(path).name.ifBlank { path }
+    private fun closePopupIfOpen(): Boolean {
+        val popup = currentPopup ?: return false
+        if (popup.isDisposed) return false
 
-            Triple(name, path, a)
-        }.filter { (_, path, _) -> path.isNotBlank() && path !in openPaths }
+        popup.cancel()
+        return true
+    }
 
-        val recentManager = RecentProjectsManagerBase.getInstanceEx()
-
-        val items: List<SwitcherItem> = buildList {
-            if (openProjects.isNotEmpty()) {
-                openProjects.forEach { p ->
-                    val pPath = p.basePath?.let { FileUtil.toSystemIndependentName(it) }
-                    val branch = pPath?.let { getCurrentBranchByPath(it) }
-                    val icon = pPath?.let { recentManager.getProjectIcon(it, true, 20) }
-                    add(
-                        SwitcherItem.OpenProjectItem(
-                            project = p,
-                            isCurrent = (currentProject != null && currentProject == p),
-                            branch = branch,
-                            icon = icon
-                        )
-                    )
-                }
-            }
-
-            if (recentMeta.isNotEmpty()) {
-                add(SwitcherItem.Header("Recent"))
-                recentMeta.forEach { (_, path, action) ->
-                    val branch = getCurrentBranchByPath(path)
-                    add(SwitcherItem.RecentProjectItem(action = action, branch = branch))
-                }
-            }
-        }
-
-        if (items.none { it is SwitcherItem.OpenProjectItem || it is SwitcherItem.RecentProjectItem }) return
-
-        val panel = JewelComposePanel {
+    private fun createPopupPanel(projectsData: ProjectsData, place: String): JComponent {
+        return JewelComposePanel {
             SwingBridgeTheme {
                 ProjectSwitcherPopup(
-                    items = items,
-                    currentProjectName = currentProject?.name,
+                    projectsData = projectsData,
                     onClose = { currentPopup?.cancel() },
-                    onSelectOpen = { p ->
+                    onSelectOpen = { openProject ->
                         currentPopup?.cancel()
-                        ProjectUtil.focusProjectWindow(p, true)
+                        ProjectUtil.focusProjectWindow(openProject.project, true)
                     },
-                    onSelectRecent = { reopenAction, modifiersEx ->
+                    onSelectRecent = { recentProject, modifiersEx ->
                         currentPopup?.cancel()
-
-                        val src: Component? =
-                            (KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner as? Component)
-                                ?: (currentPopup?.content as? Component)
-
-                        if (src != null) {
-                            executeReopen(reopenAction, place, src, modifiersEx)
-                        }
+                        executeReopenAction(recentProject, place, modifiersEx)
                     }
                 )
             }
         }.apply {
-            preferredSize = Dimension(450, 300)
+            preferredSize = Dimension(POPUP_WIDTH, POPUP_HEIGHT)
         }
+    }
 
-        val popup = JBPopupFactory.getInstance()
+    private fun createPopup(panel: JComponent): JBPopup {
+        return JBPopupFactory.getInstance()
             .createComponentPopupBuilder(panel, panel)
             .setRequestFocus(true)
             .setFocusable(true)
@@ -154,27 +89,15 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
             .setMovable(false)
             .setResizable(false)
             .createPopup()
-
-        // Устанавливаем currentPopup ПЕРЕД показом
-        currentPopup = popup
-
-        popup.addListener(object : com.intellij.openapi.ui.popup.JBPopupListener {
-            override fun onClosed(event: com.intellij.openapi.ui.popup.LightweightWindowEvent) {
-                if (currentPopup == popup) {
-                    currentPopup = null
-                }
-            }
-        })
-
-        popup.showCenteredInCurrentWindow(e.project ?: ProjectManager.getInstance().defaultProject)
     }
 
-    private fun executeReopen(
-        action: ReopenProjectAction,
+    private fun executeReopenAction(
+        recentProject: ProjectData.Recent,
         place: String,
-        contextComponent: Component,
         modifiersEx: Int
     ) {
+        val contextComponent = getContextComponent() ?: return
+
         val inputEvent = KeyEvent(
             contextComponent,
             KeyEvent.KEY_PRESSED,
@@ -185,11 +108,31 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
         )
 
         ActionManager.getInstance().tryToExecute(
-            action,
+            recentProject.action,
             inputEvent,
             contextComponent,
-            place,
+            place.ifBlank { ActionPlaces.UNKNOWN },
             true
         )
     }
+
+    private fun getContextComponent(): Component? {
+        return KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner
+            ?: currentPopup?.content
+    }
+
+    private inner class PopupCloseListener : JBPopupListener {
+        override fun onClosed(event: LightweightWindowEvent) {
+            currentPopup = null
+        }
+    }
+
+    companion object {
+        private const val POPUP_WIDTH = 450
+        private const val POPUP_HEIGHT = 300
+
+        @Volatile
+        private var currentPopup: JBPopup? = null
+    }
 }
+
