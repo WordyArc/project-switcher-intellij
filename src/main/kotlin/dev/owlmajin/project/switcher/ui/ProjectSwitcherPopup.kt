@@ -8,13 +8,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -42,9 +42,6 @@ private const val POPUP_TITLE = "Switch Project"
 private const val SEARCH_PLACEHOLDER = "Search projects..."
 private const val RECENT_HEADER = "Recent"
 
-/**
- * Main popup UI for project switcher.
- */
 @Composable
 fun ProjectSwitcherPopup(
     projectsData: ProjectsData,
@@ -55,17 +52,15 @@ fun ProjectSwitcherPopup(
     val queryState = remember { TextFieldState("") }
     val query by remember { derivedStateOf { queryState.text.toString() } }
 
-    val filteredData = remember(projectsData, query) {
-        projectsData.filterByQuery(query)
-    }
+    val filteredData = remember(projectsData, query) { projectsData.filter(query) }
+    val allProjects = remember(filteredData) { filteredData.allProjects }
+    val allIds = remember(allProjects) { allProjects.map { it.id } }
 
-    val flatList = remember(filteredData) {
-        buildFlatList(filteredData)
-    }
+    var selectedId by remember { mutableStateOf(allIds.firstOrNull()) }
 
-    var selectedIndex by remember { mutableIntStateOf(0) }
-    LaunchedEffect(flatList.size) {
-        selectedIndex = selectedIndex.coerceIn(0, flatList.lastIndex.coerceAtLeast(0))
+    // selection должна быть стабильной при фильтрации
+    LaunchedEffect(allIds) {
+        if (selectedId !in allIds) selectedId = allIds.firstOrNull()
     }
 
     val focusRequester = remember { FocusRequester() }
@@ -81,12 +76,12 @@ fun ProjectSwitcherPopup(
                     event = event,
                     query = query,
                     queryState = queryState,
-                    selectedIndex = selectedIndex,
-                    flatList = flatList,
+                    allProjects = allProjects,
+                    selectedId = selectedId,
                     onClose = onClose,
                     onSelectOpen = onSelectOpen,
                     onSelectRecent = onSelectRecent,
-                    updateSelectedIndex = { selectedIndex = it }
+                    updateSelectedId = { selectedId = it }
                 )
             }
     ) {
@@ -102,8 +97,8 @@ fun ProjectSwitcherPopup(
         Spacer(Modifier.size(10.dp))
 
         ProjectList(
-            flatList = flatList,
-            selectedIndex = selectedIndex,
+            data = filteredData,
+            selectedId = selectedId,
             onSelectOpen = onSelectOpen,
             onSelectRecent = onSelectRecent
         )
@@ -112,30 +107,31 @@ fun ProjectSwitcherPopup(
 
 @Composable
 private fun ProjectList(
-    flatList: List<FlatItem>,
-    selectedIndex: Int,
+    data: ProjectsData,
+    selectedId: String?,
     onSelectOpen: (ProjectData.Open) -> Unit,
-    onSelectRecent: (ProjectData.Recent, Int) -> Unit
+    onSelectRecent: (ProjectData.Recent, Int) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize()) {
-        itemsIndexed(flatList, key = { _, item -> item.key }) { index, item ->
-            when (item) {
-                is FlatItem.ProjectItem -> {
-                    ProjectListItem(
-                        projectData = item.data,
-                        isSelected = index == selectedIndex,
-                        isCurrent = (item.data as? ProjectData.Open)?.isCurrent == true,
-                        onClick = {
-                            when (val data = item.data) {
-                                is ProjectData.Open -> onSelectOpen(data)
-                                is ProjectData.Recent -> onSelectRecent(data, 0)
-                            }
-                        }
-                    )
-                }
-                is FlatItem.Header -> {
-                    SectionHeader(text = item.text)
-                }
+        items(data.openProjects, key = { it.id }) { project ->
+            ProjectListItem(
+                projectData = project,
+                isSelected = project.id == selectedId,
+                onClick = { onSelectOpen(project) }
+            )
+        }
+
+        if (data.hasRecentProjects) {
+            item(key = "header:$RECENT_HEADER") {
+                SectionHeader(text = RECENT_HEADER)
+            }
+
+            items(data.recentProjects, key = { it.id }) { project ->
+                ProjectListItem(
+                    projectData = project,
+                    isSelected = project.id == selectedId,
+                    onClick = { onSelectRecent(project, 0) }
+                )
             }
         }
     }
@@ -148,69 +144,21 @@ private fun SectionHeader(text: String) {
     Spacer(Modifier.height(4.dp))
 }
 
-// region Flat List
-
-private sealed interface FlatItem {
-    val key: String
-
-    data class ProjectItem(val data: ProjectData) : FlatItem {
-        override val key: String = when (data) {
-            is ProjectData.Open -> "open:${data.project.locationHash}"
-            is ProjectData.Recent -> "recent:${data.path}"
-        }
-    }
-
-    data class Header(val text: String) : FlatItem {
-        override val key: String = "header:$text"
-    }
-}
-
-private fun buildFlatList(projectsData: ProjectsData): List<FlatItem> = buildList {
-    projectsData.openProjects.forEach { add(FlatItem.ProjectItem(it)) }
-
-    if (projectsData.hasRecentProjects) {
-        add(FlatItem.Header(RECENT_HEADER))
-        projectsData.recentProjects.forEach { add(FlatItem.ProjectItem(it)) }
-    }
-}
-
-// endregion
-
-// region Filtering
-
-private fun ProjectsData.filterByQuery(query: String): ProjectsData {
-    val trimmed = query.trim()
-    if (trimmed.isEmpty()) return this
-
-    return ProjectsData(
-        openProjects = openProjects.filter { it.matchesQuery(trimmed) },
-        recentProjects = recentProjects.filter { it.matchesQuery(trimmed) }
-    )
-}
-
-private fun ProjectData.matchesQuery(query: String): Boolean {
-    return displayName.contains(query, ignoreCase = true) ||
-        path?.contains(query, ignoreCase = true) == true
-}
-
-// endregion
-
 // region Keyboard Navigation
 
 private fun handleKeyEvent(
     event: KeyEvent,
     query: String,
     queryState: TextFieldState,
-    selectedIndex: Int,
-    flatList: List<FlatItem>,
+    allProjects: List<ProjectData>,
+    selectedId: String?,
     onClose: () -> Unit,
     onSelectOpen: (ProjectData.Open) -> Unit,
     onSelectRecent: (ProjectData.Recent, Int) -> Unit,
-    updateSelectedIndex: (Int) -> Unit
+    updateSelectedId: (String?) -> Unit
 ): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
 
-    // Handle Alt+F2 for toggle
     if (event.key == Key.F2 && event.isAltPressed) {
         onClose()
         return true
@@ -222,15 +170,15 @@ private fun handleKeyEvent(
             true
         }
         Key.DirectionDown -> {
-            updateSelectedIndex(findNextProjectIndex(flatList, selectedIndex, forward = true))
+            updateSelectedId(moveSelection(allProjects, selectedId, delta = +1))
             true
         }
         Key.DirectionUp -> {
-            updateSelectedIndex(findNextProjectIndex(flatList, selectedIndex, forward = false))
+            updateSelectedId(moveSelection(allProjects, selectedId, delta = -1))
             true
         }
         Key.Enter -> {
-            handleEnterKey(event, flatList, selectedIndex, onSelectOpen, onSelectRecent)
+            handleEnterKey(event, allProjects, selectedId, onSelectOpen, onSelectRecent)
             true
         }
         Key.Backspace -> {
@@ -241,29 +189,27 @@ private fun handleKeyEvent(
     }
 }
 
-private fun findNextProjectIndex(flatList: List<FlatItem>, currentIndex: Int, forward: Boolean): Int {
-    val range = if (forward) {
-        (currentIndex + 1)..flatList.lastIndex
-    } else {
-        (currentIndex - 1) downTo 0
-    }
+private fun moveSelection(allProjects: List<ProjectData>, selectedId: String?, delta: Int): String? {
+    if (allProjects.isEmpty()) return null
 
-    return range.firstOrNull { flatList[it] is FlatItem.ProjectItem } ?: currentIndex
+    val currentIndex = allProjects.indexOfFirst { it.id == selectedId }.let { if (it >= 0) it else 0 }
+    val newIndex = (currentIndex + delta).coerceIn(0, allProjects.lastIndex)
+    return allProjects[newIndex].id
 }
 
 private fun handleEnterKey(
     event: KeyEvent,
-    flatList: List<FlatItem>,
-    selectedIndex: Int,
+    allProjects: List<ProjectData>,
+    selectedId: String?,
     onSelectOpen: (ProjectData.Open) -> Unit,
     onSelectRecent: (ProjectData.Recent, Int) -> Unit
 ) {
-    val item = flatList.getOrNull(selectedIndex) as? FlatItem.ProjectItem ?: return
+    val selected = allProjects.firstOrNull { it.id == selectedId } ?: return
     val modifiersEx = event.toModifiersMask()
 
-    when (val data = item.data) {
-        is ProjectData.Open -> onSelectOpen(data)
-        is ProjectData.Recent -> onSelectRecent(data, modifiersEx)
+    when (selected) {
+        is ProjectData.Open -> onSelectOpen(selected)
+        is ProjectData.Recent -> onSelectRecent(selected, modifiersEx)
     }
 }
 
@@ -283,6 +229,9 @@ private fun handleBackspace(query: String, queryState: TextFieldState) {
 }
 
 private fun handleCharacterInput(event: KeyEvent, queryState: TextFieldState): Boolean {
+    // не трогаем модификаторы — пусть хоткеи проходят
+    if (event.isCtrlPressed || event.isMetaPressed || event.isAltPressed) return false
+
     val char = event.utf16CodePoint.toChar()
     return if (char.isDefined() && !char.isISOControl()) {
         queryState.edit { replace(length, length, char.toString()) }

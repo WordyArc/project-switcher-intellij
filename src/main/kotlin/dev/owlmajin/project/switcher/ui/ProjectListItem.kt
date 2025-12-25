@@ -37,7 +37,6 @@ private val INDICATOR_INSET_START = 2.dp
 fun ProjectListItem(
     projectData: ProjectData,
     isSelected: Boolean,
-    isCurrent: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -46,7 +45,7 @@ fun ProjectListItem(
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
 
-    // Берём OPAQUE цвета из UI defaults (как делает платформа для списков),
+    // OPAQUE цвета из UI defaults (как делает платформа для списков),
     // чтобы SwingPanel не проваливался в чёрный на alpha.
     val panelBgAwt = JBColor.PanelBackground
     val selectedBgAwt = JBColor.namedColor("List.selectionBackground", panelBgAwt)
@@ -81,7 +80,7 @@ fun ProjectListItem(
             )
     ) {
         CurrentProjectIndicator(
-            visible = isCurrent,
+            visible = projectData.isCurrent,
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .padding(start = INDICATOR_INSET_START, top = INDICATOR_VPAD, bottom = INDICATOR_VPAD)
@@ -104,17 +103,29 @@ fun ProjectListItem(
             Spacer(Modifier.weight(1f))
 
             projectData.branch?.let { branch ->
-                Text(branch, maxLines = 1)
+                BranchText(branch = branch, isSelected = isSelected)
             }
         }
     }
 }
 
 @Composable
+private fun BranchText(branch: String, isSelected: Boolean) {
+    val textColors = JewelTheme.globalColors.text
+    val secondary = if (isSelected) textColors.disabledSelected else textColors.disabled
+
+    Text(
+        text = branch,
+        color = secondary,
+        maxLines = 1
+    )
+}
+
+@Composable
 private fun CurrentProjectIndicator(visible: Boolean, modifier: Modifier = Modifier) {
     if (!visible) return
-    val c = JewelTheme.globalColors.text.normal.copy(alpha = 0.85f)
 
+    val c = JewelTheme.globalColors.text.normal.copy(alpha = 0.85f)
     Canvas(modifier = modifier) {
         val x = size.width / 2f
         drawLine(
@@ -135,8 +146,8 @@ private fun ProjectIcon(icon: Icon?, background: java.awt.Color) {
             JLabel(icon).apply {
                 horizontalAlignment = SwingConstants.CENTER
                 verticalAlignment = SwingConstants.CENTER
-                isOpaque = true              // важно: иначе фон не будет рисоваться
-                this.background = background // OPAQUE фон => нет чёрного “под” иконкой
+                isOpaque = true
+                this.background = background
                 border = null
                 text = null
             }
