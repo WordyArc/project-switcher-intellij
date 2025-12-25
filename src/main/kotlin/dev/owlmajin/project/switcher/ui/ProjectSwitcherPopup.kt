@@ -4,6 +4,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,12 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.owlmajin.project.switcher.data.ProjectData
 import dev.owlmajin.project.switcher.data.ProjectsData
 import org.jetbrains.jewel.ui.component.Text
 
-private const val POPUP_TITLE = "Switch Project"
+private const val POPUP_TITLE = "Project Switcher"
 private const val RECENT_HEADER = "Recent"
 
 @Composable
@@ -66,7 +68,7 @@ fun ProjectSwitcherPopup(
                 )
             }
     ) {
-        Text(POPUP_TITLE)
+        Text(POPUP_TITLE, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.size(8.dp))
 
         // Speed-search header: появляется только когда есть ввод
