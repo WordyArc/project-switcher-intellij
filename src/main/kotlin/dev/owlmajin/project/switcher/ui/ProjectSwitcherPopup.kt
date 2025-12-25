@@ -1,9 +1,9 @@
 package dev.owlmajin.project.switcher.ui
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,10 +23,8 @@ import androidx.compose.ui.unit.dp
 import dev.owlmajin.project.switcher.data.ProjectData
 import dev.owlmajin.project.switcher.data.ProjectsData
 import org.jetbrains.jewel.ui.component.Text
-import org.jetbrains.jewel.ui.component.TextField
 
 private const val POPUP_TITLE = "Switch Project"
-private const val SEARCH_PLACEHOLDER = "Search projects..."
 private const val RECENT_HEADER = "Recent"
 
 @Composable
@@ -51,7 +49,9 @@ fun ProjectSwitcherPopup(
         modifier = Modifier
             .fillMaxSize()
             .padding(10.dp)
+            // без focusable() фокус не будет устанавливаться, и key events пропадут
             .focusRequester(focusRequester)
+            .focusable()
             .onPreviewKeyEvent { event ->
                 handleProjectSwitcherKeyEvent(
                     event = event,
@@ -69,13 +69,16 @@ fun ProjectSwitcherPopup(
         Text(POPUP_TITLE)
         Spacer(Modifier.size(8.dp))
 
-        TextField(
-            state = queryState,
-            placeholder = { Text(SEARCH_PLACEHOLDER) },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(Modifier.size(10.dp))
+        // Speed-search header: появляется только когда есть ввод
+        if (query.isNotBlank()) {
+            ProjectSearchBar(
+                query = query,
+                onClear = { clearQuery(queryState) }
+            )
+            Spacer(Modifier.size(10.dp))
+        } else {
+            Spacer(Modifier.height(6.dp))
+        }
 
         ProjectList(
             data = filteredData,
@@ -121,4 +124,8 @@ private fun SectionHeader(text: String) {
     Spacer(Modifier.height(8.dp))
     Text(text, modifier = Modifier.padding(horizontal = 6.dp))
     Spacer(Modifier.height(4.dp))
+}
+
+private fun clearQuery(state: TextFieldState) {
+    state.edit { replace(0, length, "") }
 }

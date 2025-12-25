@@ -34,7 +34,12 @@ internal fun handleProjectSwitcherKeyEvent(
 
     return when (event.key) {
         Key.Escape -> {
-            onClose()
+            // как в speed-search: Esc сначала чистит, потом закрывает
+            if (query.isNotEmpty()) {
+                clearQuery(queryState)
+            } else {
+                onClose()
+            }
             true
         }
         Key.DirectionDown -> {
@@ -109,4 +114,8 @@ private fun appendTypedChar(event: KeyEvent, queryState: TextFieldState): Boolea
     } else {
         false
     }
+}
+
+private fun clearQuery(state: TextFieldState) {
+    state.edit { replace(0, length, "") }
 }
