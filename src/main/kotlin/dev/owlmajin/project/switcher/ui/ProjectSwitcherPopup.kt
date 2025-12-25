@@ -1,5 +1,7 @@
+// ./ui/ProjectSwitcherPopup.kt
 package dev.owlmajin.project.switcher.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.owlmajin.project.switcher.data.ProjectData
 import dev.owlmajin.project.switcher.data.ProjectsData
+import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.Text
 
 private const val POPUP_TITLE = "Project Switcher"
@@ -50,8 +53,8 @@ fun ProjectSwitcherPopup(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(10.dp)
-            // без focusable() фокус не будет устанавливаться, и key events пропадут
+            // чуть компактнее по горизонтали, чтобы “не раздувать” визуально
+            .padding(horizontal = 8.dp, vertical = 10.dp)
             .focusRequester(focusRequester)
             .focusable()
             .onPreviewKeyEvent { event ->
@@ -68,18 +71,27 @@ fun ProjectSwitcherPopup(
                 )
             }
     ) {
-        Text(POPUP_TITLE, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Text(
+            text = POPUP_TITLE,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+
         Spacer(Modifier.size(8.dp))
 
-        // Speed-search header: появляется только когда есть ввод
+        // Speed-search header появляется только при вводе.
         if (query.isNotBlank()) {
             ProjectSearchBar(
                 query = query,
-                onClear = { clearQuery(queryState) }
+                onClear = { clearQuery(queryState) },
+                modifier = Modifier.fillMaxWidth()
             )
-            Spacer(Modifier.size(10.dp))
+            // spacer чуть меньше, чтобы список начинался ближе и “собраннее”
+            Spacer(Modifier.size(6.dp))
         } else {
-            Spacer(Modifier.height(6.dp))
+            // Divider отделяет заголовок от списка, когда search-bar скрыт
+            HeaderDivider()
+            Spacer(Modifier.size(6.dp))
         }
 
         ProjectList(
@@ -89,6 +101,18 @@ fun ProjectSwitcherPopup(
             onSelectRecent = onSelectRecent
         )
     }
+}
+
+@Composable
+private fun HeaderDivider(modifier: Modifier = Modifier) {
+    val c = JewelTheme.globalColors.text.disabled.copy(alpha = 0.20f)
+
+    Spacer(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(c)
+    )
 }
 
 @Composable

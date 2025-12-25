@@ -1,3 +1,4 @@
+// ./ProjectSwitchAction.kt
 package dev.owlmajin.project.switcher
 
 import com.intellij.ide.impl.ProjectUtil
@@ -24,11 +25,6 @@ import java.awt.KeyboardFocusManager
 import java.awt.event.KeyEvent
 import javax.swing.JComponent
 
-/**
- * Action to show project switcher popup.
- *
- * Displays a list of open and recent projects, allows navigation and switching between them.
- */
 class ProjectSwitchAction : DumbAwareAction("Switch Project") {
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
@@ -128,11 +124,10 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
     }
 
     companion object {
-        private const val POPUP_WIDTH = 450
-        private const val POPUP_HEIGHT = 300
+        private const val POPUP_WIDTH = 380
+        private const val POPUP_HEIGHT = 420
 
         @Volatile
         private var currentPopup: JBPopup? = null
     }
 }
-
