@@ -41,9 +41,8 @@ fun ProjectSwitcherPopup(
 
     val filteredData = remember(projectsData, query) { projectsData.filter(query) }
     val allProjects = remember(filteredData) { filteredData.allProjects }
-    val allIds = remember(allProjects) { allProjects.map { it.id } }
 
-    val selection = rememberProjectSelection(allIds)
+    val selection = rememberProjectSelection(allProjects)
 
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }

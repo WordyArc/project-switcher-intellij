@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import dev.owlmajin.project.switcher.data.ProjectData
 
 internal class ProjectSelectionState(
     initialSelectedId: String?
@@ -14,14 +15,21 @@ internal class ProjectSelectionState(
 }
 
 @Composable
-internal fun rememberProjectSelection(allIds: List<String>): ProjectSelectionState {
-    val state = remember { ProjectSelectionState(allIds.firstOrNull()) }
+internal fun rememberProjectSelection(allProjects: List<ProjectData>): ProjectSelectionState {
+    val currentId = remember(allProjects) { allProjects.firstOrNull { it.isCurrent }?.id }
+    val firstId = remember(allProjects) { allProjects.firstOrNull()?.id }
 
-    // Держим selection стабильной при изменении списка (фильтрация / обновление данных)
-    LaunchedEffect(allIds) {
-        if (state.selectedId !in allIds) {
-            state.selectedId = allIds.firstOrNull()
-        }
+    // initial: current -> first -> null
+    val state = remember {
+        ProjectSelectionState(initialSelectedId = currentId ?: firstId)
+    }
+
+    // sync on changes
+    LaunchedEffect(allProjects) {
+        val ids = allProjects.asSequence().map { it.id }.toSet()
+        if (state.selectedId in ids) return@LaunchedEffect
+
+        state.selectedId = currentId ?: firstId
     }
 
     return state
