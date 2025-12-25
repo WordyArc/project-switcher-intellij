@@ -14,9 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -45,11 +43,7 @@ fun ProjectSwitcherPopup(
     val allProjects = remember(filteredData) { filteredData.allProjects }
     val allIds = remember(allProjects) { allProjects.map { it.id } }
 
-    var selectedId by remember { mutableStateOf(allIds.firstOrNull()) }
-
-    LaunchedEffect(allIds) {
-        if (selectedId !in allIds) selectedId = allIds.firstOrNull()
-    }
+    val selection = rememberProjectSelection(allIds)
 
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -65,11 +59,11 @@ fun ProjectSwitcherPopup(
                     query = query,
                     queryState = queryState,
                     allProjects = allProjects,
-                    selectedId = selectedId,
+                    selectedId = selection.selectedId,
                     onClose = onClose,
                     onSelectOpen = onSelectOpen,
                     onSelectRecent = onSelectRecent,
-                    updateSelectedId = { selectedId = it }
+                    updateSelectedId = { selection.selectedId = it }
                 )
             }
     ) {
@@ -86,7 +80,7 @@ fun ProjectSwitcherPopup(
 
         ProjectList(
             data = filteredData,
-            selectedId = selectedId,
+            selectedId = selection.selectedId,
             onSelectOpen = onSelectOpen,
             onSelectRecent = onSelectRecent
         )
