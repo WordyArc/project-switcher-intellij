@@ -106,17 +106,16 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
     ) {
         val app = ApplicationManager.getApplication()
 
-        val dumbProbeProject: Project? =
+        val probeProject: Project? =
             currentProject ?: ProjectManager.getInstance().openProjects.firstOrNull { !it.isDisposed }
 
-        val isDumbNow = dumbProbeProject?.let { DumbService.isDumb(it) } == true
+        val isDumbNow = probeProject?.let { DumbService.isDumb(it) } == true
 
         fun publish(data: ProjectsData) {
             app.invokeLater(
                 {
                     if (!popup.isDisposed) {
                         projectsState.value = data
-                        // если реально нечего показывать — можно закрыть автоматически
                         if (data.isEmpty) currentPopup?.cancel()
                     }
                 },
@@ -124,40 +123,24 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
             )
         }
 
-        // 1) Быстрый путь: без иконок/веток (почти не зависит от индексации).
-        if (isDumbNow) {
-            app.executeOnPooledThread {
+        app.executeOnPooledThread {
+            // 1) В dumb mode показываем список максимально быстро (без декораций)
+            if (isDumbNow) {
                 val fast = ProjectDataService.collectProjectsData(
                     currentProject = currentProject,
                     includeBranch = false,
                     includeIcon = false
                 )
                 publish(fast)
+            }
 
-                // 2) Когда станет smart — догружаем декорации (ветки+иконки)
-                dumbProbeProject?.let { p ->
-                    DumbService.getInstance(p).runWhenSmart {
-                        app.executeOnPooledThread {
-                            val full = ProjectDataService.collectProjectsData(
-                                currentProject = currentProject,
-                                includeBranch = true,
-                                includeIcon = true
-                            )
-                            publish(full)
-                        }
-                    }
-                }
-            }
-        } else {
-            // Обычный путь: сразу грузим всё, но всё равно в фоне.
-            app.executeOnPooledThread {
-                val full = ProjectDataService.collectProjectsData(
-                    currentProject = currentProject,
-                    includeBranch = true,
-                    includeIcon = true
-                )
-                publish(full)
-            }
+            // 2) Декорации (иконки/ветки) НЕ зависят от индексов - грузим сразу, не ждём smart
+            val full = ProjectDataService.collectProjectsData(
+                currentProject = currentProject,
+                includeBranch = true,
+                includeIcon = true
+            )
+            publish(full)
         }
     }
 
