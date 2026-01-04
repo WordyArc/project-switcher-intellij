@@ -2,6 +2,7 @@ package dev.owlmajin.project.switcher.data
 
 import com.intellij.ide.RecentProjectsManagerBase
 import com.intellij.ide.ReopenProjectAction
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.io.FileUtil
@@ -10,24 +11,19 @@ import javax.swing.Icon
 
 private const val ICON_SIZE = 20
 
-/**
- * Service responsible for collecting project data for the switcher popup.
- *
- * Collects:
- * - Open projects: currently loaded in the IDE
- * - Recent projects: previously opened, filtered to exclude currently open ones
- */
 object ProjectDataService {
 
     /**
-     * Collects all project data for display in the switcher.
-     *
-     * @param currentProject The currently active project (may be null).
-     * @return ProjectsData containing open and recent projects.
+     * @param includeBranch if false -> branch is always null (fast path, no FS reads)
+     * @param includeIcon   if false -> icon is always null (fast path, avoids any platform icon resolution work)
      */
-    fun collectProjectsData(currentProject: Project?): ProjectsData {
-        val openProjects = collectOpenProjects(currentProject)
-        val recentProjects = collectRecentProjects(openProjects)
+    fun collectProjectsData(
+        currentProject: Project?,
+        includeBranch: Boolean = true,
+        includeIcon: Boolean = true
+    ): ProjectsData {
+        val openProjects = collectOpenProjects(currentProject, includeBranch, includeIcon)
+        val recentProjects = collectRecentProjects(openProjects, includeBranch, includeIcon)
 
         return ProjectsData(
             openProjects = openProjects,
@@ -35,7 +31,11 @@ object ProjectDataService {
         )
     }
 
-    private fun collectOpenProjects(currentProject: Project?): List<ProjectData.Open> {
+    private fun collectOpenProjects(
+        currentProject: Project?,
+        includeBranch: Boolean,
+        includeIcon: Boolean
+    ): List<ProjectData.Open> {
         val recentManager = RecentProjectsManagerBase.getInstanceEx()
 
         return ProjectManager.getInstance().openProjects
@@ -47,14 +47,18 @@ object ProjectDataService {
                 ProjectData.Open(
                     project = project,
                     isCurrent = project == currentProject,
-                    branch = GitUtils.getCurrentBranch(path),
-                    icon = loadProjectIcon(recentManager, path)
+                    branch = if (includeBranch) GitUtils.getCurrentBranch(path) else null,
+                    icon = if (includeIcon) loadProjectIcon(recentManager, path) else null
                 )
             }
             .toList()
     }
 
-    private fun collectRecentProjects(openProjects: List<ProjectData.Open>): List<ProjectData.Recent> {
+    private fun collectRecentProjects(
+        openProjects: List<ProjectData.Open>,
+        includeBranch: Boolean,
+        includeIcon: Boolean
+    ): List<ProjectData.Recent> {
         val openPaths = openProjects
             .asSequence()
             .mapNotNull { it.path }
@@ -63,19 +67,18 @@ object ProjectDataService {
 
         val recentManager = RecentProjectsManagerBase.getInstanceEx()
 
-        // Actions are already sorted by last opened time (most recent first)
         return recentManager.getRecentProjectsActions(false)
             .asSequence()
             .filterIsInstance<ReopenProjectAction>()
             .filter { action ->
                 action.projectPath.isNotBlank() &&
-                    FileUtil.toSystemIndependentName(action.projectPath) !in openPaths
+                        FileUtil.toSystemIndependentName(action.projectPath) !in openPaths
             }
             .map { action ->
                 ProjectData.Recent(
                     action = action,
-                    branch = GitUtils.getCurrentBranch(action.projectPath),
-                    icon = loadProjectIcon(recentManager, action.projectPath)
+                    branch = if (includeBranch) GitUtils.getCurrentBranch(action.projectPath) else null,
+                    icon = if (includeIcon) loadProjectIcon(recentManager, action.projectPath) else null
                 )
             }
             .toList()
@@ -85,7 +88,9 @@ object ProjectDataService {
         if (path.isNullOrBlank()) return null
         return try {
             recentManager.getProjectIcon(path, true, ICON_SIZE)
-        } catch (_: Exception) {
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (_: Throwable) {
             null
         }
     }

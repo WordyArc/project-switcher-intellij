@@ -1,4 +1,3 @@
-// ./ui/ProjectSwitcherPopup.kt
 package dev.owlmajin.project.switcher.ui
 
 import androidx.compose.foundation.background
