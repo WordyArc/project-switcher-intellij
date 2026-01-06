@@ -2,8 +2,10 @@ package dev.owlmajin.project.switcher
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import com.intellij.ide.DataManager
 import com.intellij.ide.impl.ProjectUtil
 import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.project.DumbAwareAction
@@ -11,6 +13,7 @@ import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.popup.*
+import com.intellij.openapi.wm.WindowManager
 import dev.owlmajin.project.switcher.data.ProjectData
 import dev.owlmajin.project.switcher.data.ProjectDataService
 import dev.owlmajin.project.switcher.data.ProjectsData
@@ -19,13 +22,12 @@ import org.jetbrains.jewel.bridge.JewelComposePanel
 import org.jetbrains.jewel.bridge.theme.SwingBridgeTheme
 import java.awt.Component
 import java.awt.Dimension
-import java.awt.KeyboardFocusManager
+import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import javax.swing.JComponent
 
 class ProjectSwitchAction : DumbAwareAction("Switch Project") {
 
-    // Важно: update должен быть максимально дешёвым и не блокироваться на фоне.
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 
     override fun update(e: AnActionEvent) {
@@ -36,18 +38,17 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
         if (closePopupIfOpen()) return
 
         val currentProject = e.project
-        val place = e.place
+        val place = e.place.ifBlank { ActionPlaces.UNKNOWN }
 
         val projectsState = mutableStateOf(ProjectsData.EMPTY)
 
-        val panel = createPopupPanel(projectsState, place)
+        val panel = createPopupPanel(projectsState, place, currentProject)
         val popup = createPopup(panel)
 
         currentPopup = popup
         popup.addListener(PopupCloseListener())
         popup.showCenteredInCurrentWindow(currentProject ?: ProjectManager.getInstance().defaultProject)
 
-        // грузим данные после показа popup - главное, не блокировать EDT
         loadProjectsAsync(
             currentProject = currentProject,
             popup = popup,
@@ -64,7 +65,8 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
 
     private fun createPopupPanel(
         projectsState: MutableState<ProjectsData>,
-        place: String
+        place: String,
+        currentProject: Project?
     ): JComponent {
         return JewelComposePanel {
             SwingBridgeTheme {
@@ -76,8 +78,24 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
                         ProjectUtil.focusProjectWindow(openProject.project, true)
                     },
                     onSelectRecent = { recentProject, modifiersEx ->
-                        currentPopup?.cancel()
-                        executeReopenAction(recentProject, place, modifiersEx)
+                        val popup = currentPopup
+                        popup?.cancel()
+
+                        // исполняем reopen уже после закрытия popup,
+                        // с нормальным IDE DataContext (frame / welcome screen)
+                        ApplicationManager.getApplication().invokeLater(
+                            {
+                                if (popup != null && popup.isDisposed) {
+                                    executeReopenAction(
+                                        recentProject = recentProject,
+                                        place = place,
+                                        modifiersEx = modifiersEx,
+                                        currentProject = currentProject
+                                    )
+                                }
+                            },
+                            ModalityState.any()
+                        )
                     }
                 )
             }
@@ -124,7 +142,6 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
         }
 
         app.executeOnPooledThread {
-            // 1) В dumb mode показываем список максимально быстро (без декораций)
             if (isDumbNow) {
                 val fast = ProjectDataService.collectProjectsData(
                     currentProject = currentProject,
@@ -134,7 +151,6 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
                 publish(fast)
             }
 
-            // 2) Декорации (иконки/ветки) НЕ зависят от индексов - грузим сразу, не ждём smart
             val full = ProjectDataService.collectProjectsData(
                 currentProject = currentProject,
                 includeBranch = true,
@@ -147,31 +163,43 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
     private fun executeReopenAction(
         recentProject: ProjectData.Recent,
         place: String,
-        modifiersEx: Int
+        modifiersEx: Int,
+        currentProject: Project?
     ) {
-        val contextComponent = getContextComponent() ?: return
+        val contextComponent = getIdeContextComponent(currentProject) ?: return
+        val dataContext = DataManager.getInstance().getDataContext(contextComponent)
 
-        val inputEvent = KeyEvent(
-            contextComponent,
-            KeyEvent.KEY_PRESSED,
-            System.currentTimeMillis(),
-            modifiersEx,
-            KeyEvent.VK_ENTER,
-            '\n'
-        )
+        // Если модификаторов нет — НЕ подсовываем KeyEvent:
+        // это дает стандартное поведение (модалка выбора окна).
+        val inputEvent: InputEvent? =
+            if (modifiersEx != 0) {
+                KeyEvent(
+                    contextComponent,
+                    KeyEvent.KEY_PRESSED,
+                    System.currentTimeMillis(),
+                    modifiersEx,
+                    KeyEvent.VK_ENTER,
+                    '\n'
+                )
+            } else null
 
-        ActionManager.getInstance().tryToExecute(
+        // Идиоматично: через Action System, с корректным DataContext
+        ActionUtil.invokeAction(
             recentProject.action,
-            inputEvent,
-            contextComponent,
+            dataContext,
             place.ifBlank { ActionPlaces.UNKNOWN },
-            true
+            inputEvent,
+            null
         )
     }
 
-    private fun getContextComponent(): Component? {
-        return KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner
-            ?: currentPopup?.content
+    private fun getIdeContextComponent(currentProject: Project?): Component? {
+        // 1) если есть текущий проект - берем его frame/rootPane (самый “правильный” DataContext)
+        val frame = currentProject?.let { WindowManager.getInstance().getFrame(it) }
+        if (frame != null) return frame.rootPane
+
+        // 2) fallback: активный frame или welcome screen
+        return ProjectUtil.getActiveFrameOrWelcomeScreen()
     }
 
     private inner class PopupCloseListener : JBPopupListener {
