@@ -545,3 +545,4 @@ That approach gives more possibilities for testing and debugging pre-releases, f
 [keep-a-changelog-how]: https://keepachangelog.com/en/1.0.0/#how
 [semver]: https://semver.org
 [xpath]: https://www.w3.org/TR/xpath-21/
+
