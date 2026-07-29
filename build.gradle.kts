@@ -1,93 +1,43 @@
-import org.jetbrains.changelog.Changelog
-import org.jetbrains.changelog.markdownToHTML
-import org.jetbrains.intellij.platform.gradle.TestFrameworkType
-
 plugins {
-    id("java")
     alias(libs.plugins.kotlin)
-    alias(libs.plugins.intelliJPlatform)
-    alias(libs.plugins.changelog)
-    alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinCompose)
+    alias(libs.plugins.intellijPlatform)
 }
 
-group = "dev.ashenarx.project.switcher.intellij"
-version = "0.1.0"
-val pluginRepositoryUrl = "https://github.com/WordyArc/ProjectSwitcher"
-val pluginSinceBuild = "262"
-val pluginName= "Project Switcher"
-val platformVersion = "2026.2"
-
+group = providers.gradleProperty("pluginGroup").get()
+version = providers.gradleProperty("pluginVersion").get()
 
 kotlin {
-    jvmToolchain(25)
+    jvmToolchain(providers.gradleProperty("javaVersion").get().toInt())
 
     compilerOptions {
-        freeCompilerArgs.addAll(
-            listOf(
-                "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi"
-            )
-        )
+        optIn.add("androidx.compose.foundation.ExperimentalFoundationApi")
+        optIn.add("org.jetbrains.jewel.foundation.ExperimentalJewelApi")
     }
 }
 
 repositories {
     mavenCentral()
-    intellijPlatform { defaultRepositories() }
-    google()
-}
-
-dependencies {
-    testImplementation(libs.junit)
-    testImplementation(libs.opentest4j)
-    testImplementation(libs.hamcrest)
-    testImplementation(libs.composeuitest)
-    testImplementation(libs.jewelstandalone)
-    // Workaround for running tests on Windows and Linux
-    // It provides necessary Skiko runtime native binaries
-    testImplementation(libs.skikoAwtRuntimeAll)
 
     intellijPlatform {
-        intellijIdea(platformVersion)
-        bundledPlugin("com.intellij.java")
-        composeUI()
-        testFramework(TestFrameworkType.Platform)
+        defaultRepositories()
     }
 }
 
-// Configure IntelliJ Platform Gradle Plugin - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-extension.html
+dependencies {
+    intellijPlatform {
+        intellijIdea(providers.gradleProperty("platformVersion"))
+        composeUI()
+    }
+}
+
+// https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-extension.html
 intellijPlatform {
     pluginConfiguration {
-        name = pluginName
-        version = "${project.version}"
-
-        // Extract the <!-- Plugin description --> section from README.md and provide for the plugin's manifest
-        description = providers.fileContents(layout.projectDirectory.file("README.md")).asText.map {
-            val start = "<!-- Plugin description -->"
-            val end = "<!-- Plugin description end -->"
-
-            with(it.lines()) {
-                if (!containsAll(listOf(start, end))) {
-                    throw GradleException("Plugin description section not found in README.md:\n$start ... $end")
-                }
-                subList(indexOf(start) + 1, indexOf(end)).joinToString("\n").let(::markdownToHTML)
-            }
-        }
-
-        val changelog = project.changelog // local variable for configuration cache compatibility
-        // Get the latest available change notes from the changelog file
-        changeNotes = providers.gradleProperty("pluginVersion").map { pluginVersion ->
-            with(changelog) {
-                renderItem(
-                    (getOrNull(pluginVersion) ?: getUnreleased())
-                        .withHeader(false)
-                        .withEmptySections(false),
-                    Changelog.OutputType.HTML,
-                )
-            }
-        }
-
         ideaVersion {
-            sinceBuild = pluginSinceBuild
+            sinceBuild = providers.gradleProperty("pluginSinceBuild")
+            // Open-ended: no upper bound on the supported platform build.
+            untilBuild = provider { null }
         }
     }
 
@@ -99,32 +49,11 @@ intellijPlatform {
 
     publishing {
         token = providers.environmentVariable("PUBLISH_TOKEN")
-        // The pluginVersion is based on the SemVer (https://semver.org) and supports pre-release labels, like 2.1.7-alpha.3
-        // Specify pre-release label to publish the plugin in a custom Release Channel automatically. Read more:
-        // https://plugins.jetbrains.com/docs/intellij/deployment.html#specifying-a-release-channel
-        channels = providers.gradleProperty("pluginVersion")
-            .map { listOf(it.substringAfter('-', "").substringBefore('.').ifEmpty { "default" }) }
     }
 
     pluginVerification {
-        ides { recommended() }
+        ides {
+            recommended()
+        }
     }
 }
-
-changelog {
-    groups.empty()
-    repositoryUrl = pluginRepositoryUrl
-}
-
-tasks {
-    wrapper {
-        gradleVersion = providers.gradleProperty("gradleVersion").get()
-    }
-
-    publishPlugin {
-        dependsOn(patchChangelog)
-    }
-}
-
-// do not run Plugin Verifier in the template itself
-tasks.getByName("verifyPlugin").enabled = false

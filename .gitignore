@@ -1,10 +1,21 @@
+# Gradle
 .gradle
-.intellijPlatform
 build
+
+# IntelliJ Platform Gradle Plugin
+.intellijPlatform
 .kotlin
+
+# IDE — per-machine / generated files
 .idea/libraries
 .idea/modules
+.idea/shelf
 .idea/workspace.xml
 .idea/misc.xml
 .idea/kotlinc.xml
-.idea/shelf
+.idea/AndroidProjectSystem.xml
+.idea/IntelliLang.xml
+.idea/copilot.data.migration.*.xml
+
+# macOS
+.DS_Store
