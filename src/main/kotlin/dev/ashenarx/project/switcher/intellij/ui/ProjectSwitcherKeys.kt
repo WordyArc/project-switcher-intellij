@@ -104,7 +104,6 @@ private fun deleteLastChar(query: String, queryState: TextFieldState) {
 }
 
 private fun appendTypedChar(event: KeyEvent, queryState: TextFieldState): Boolean {
-    // модификаторы не перехватываем — пусть системные хоткеи проходят
     if (event.isCtrlPressed || event.isMetaPressed || event.isAltPressed) return false
 
     val ch = event.utf16CodePoint.toChar()

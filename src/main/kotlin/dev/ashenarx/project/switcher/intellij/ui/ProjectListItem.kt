@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import com.intellij.ui.JBColor
@@ -21,7 +22,7 @@ import dev.ashenarx.project.switcher.intellij.data.ProjectData
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.theme.simpleListItemStyle
-import java.awt.Color
+import java.awt.Color as AwtColor
 import javax.swing.Icon
 import javax.swing.JLabel
 import javax.swing.SwingConstants
@@ -45,8 +46,6 @@ fun ProjectListItem(
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
 
-    // OPAQUE цвета из UI defaults (как делает платформа для списков),
-    // чтобы SwingPanel не проваливался в чёрный на alpha.
     val panelBgAwt = JBColor.PanelBackground
     val selectedBgAwt = JBColor.namedColor("List.selectionBackground", panelBgAwt)
     val hoverBgAwt = JBColor.namedColor("List.hoverBackground", selectedBgAwt)
@@ -139,7 +138,7 @@ private fun CurrentProjectIndicator(visible: Boolean, modifier: Modifier = Modif
 }
 
 @Composable
-private fun ProjectIcon(icon: Icon?, background: Color) {
+private fun ProjectIcon(icon: Icon?, background: AwtColor) {
     SwingPanel(
         modifier = Modifier.size(ICON_SIZE_DP.dp),
         factory = {
@@ -159,4 +158,4 @@ private fun ProjectIcon(icon: Icon?, background: Color) {
     )
 }
 
-private fun Color.toCompose(): Color = Color(this.rgb)
+private fun AwtColor.toCompose(): Color = Color(this.rgb)

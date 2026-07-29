@@ -1,17 +1,25 @@
 <idea-plugin>
-    <id>org.jetbrains.plugins.compose.template</id>
+    <id>dev.ashenarx.project.switcher.intellij</id>
     <name>Project Switcher</name>
-    <vendor url="https://github.com/WordyArc">owlmajin</vendor>
+    <vendor url="https://github.com/WordyArc">ashenarx</vendor>
 
+    <description><![CDATA[
+        Fast keyboard-driven switching between recent projects.<br/>
+        <br/>
+        Press <kbd>Alt+F2</kbd> to open a searchable popup listing your recent projects with their
+        icons and current Git branch, then filter as you type and hit <kbd>Enter</kbd> to switch.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.compose</depends>
 
     <actions>
         <action id="dev.ashenarx.project.switcher.intellij.ProjectSwitchAction"
                 class="dev.ashenarx.project.switcher.intellij.ProjectSwitchAction"
-                text="Switch Project">
+                text="Switch Project"
+                description="Open a searchable popup to switch between recent projects">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
             <keyboard-shortcut keymap="$default" first-keystroke="alt F2"/>
         </action>
     </actions>
-
 </idea-plugin>

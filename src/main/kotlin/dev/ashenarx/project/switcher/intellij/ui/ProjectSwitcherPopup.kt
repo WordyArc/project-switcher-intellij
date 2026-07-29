@@ -52,7 +52,6 @@ fun ProjectSwitcherPopup(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // чуть компактнее по горизонтали, чтобы “не раздувать” визуально
             .padding(horizontal = 8.dp, vertical = 10.dp)
             .focusRequester(focusRequester)
             .focusable()
@@ -78,17 +77,14 @@ fun ProjectSwitcherPopup(
 
         Spacer(Modifier.size(8.dp))
 
-        // Speed-search header появляется только при вводе.
         if (query.isNotBlank()) {
             ProjectSearchBar(
                 query = query,
                 onClear = { clearQuery(queryState) },
                 modifier = Modifier.fillMaxWidth()
             )
-            // spacer чуть меньше, чтобы список начинался ближе и “собраннее”
             Spacer(Modifier.size(6.dp))
         } else {
-            // Divider отделяет заголовок от списка, когда search-bar скрыт
             HeaderDivider()
             Spacer(Modifier.size(6.dp))
         }

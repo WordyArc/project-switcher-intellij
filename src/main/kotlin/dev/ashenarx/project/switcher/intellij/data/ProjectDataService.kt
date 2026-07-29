@@ -9,14 +9,10 @@ import com.intellij.openapi.util.io.FileUtil
 import dev.ashenarx.project.switcher.intellij.util.GitUtils
 import javax.swing.Icon
 
-private const val ICON_SIZE = 20
 
 object ProjectDataService {
 
-    /**
-     * @param includeBranch if false -> branch is always null (fast path, no FS reads)
-     * @param includeIcon   if false -> icon is always null (fast path, avoids any platform icon resolution work)
-     */
+
     fun collectProjectsData(
         currentProject: Project?,
         includeBranch: Boolean = true,
@@ -87,7 +83,7 @@ object ProjectDataService {
     private fun loadProjectIcon(recentManager: RecentProjectsManagerBase, path: String?): Icon? {
         if (path.isNullOrBlank()) return null
         return try {
-            recentManager.getProjectIcon(path, true, ICON_SIZE)
+            recentManager.getProjectIcon(path, true, 20)
         } catch (e: ProcessCanceledException) {
             throw e
         } catch (_: Throwable) {

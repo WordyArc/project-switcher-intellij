@@ -21,13 +21,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.util.IconLoader
 import com.intellij.ui.JBColor
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.Text
-import java.awt.Color
+import java.awt.Color as AwtColor
 import javax.swing.Icon
 import javax.swing.JLabel
 import javax.swing.SwingConstants
@@ -92,7 +93,6 @@ private fun ClearButton(
     val interaction = remember { MutableInteractionSource() }
     val isHovered by interaction.collectIsHoveredAsState()
 
-    // Берём platform defaults для hover-подсветки action button’ов
     val hoverBg = JBColor.namedColor(
         "ActionButton.hoverBackground",
         JBColor(0x14000000, 0x26FFFFFF) // fallback: лёгкий hover в light/dark
@@ -101,7 +101,6 @@ private fun ClearButton(
     val bg = if (isHovered) hoverBg else Color.Transparent
     val shape = RoundedCornerShape(CLEAR_CORNER)
 
-    // Иконка: в покое “приглушённая”, на hover — обычная (чуть “живее” как в IDE)
     val closeIcon: Icon = if (isHovered) {
         AllIcons.Actions.Close
     } else {
@@ -150,4 +149,4 @@ private fun PlatformIcon(
     )
 }
 
-private fun Color.toCompose(): Color = Color(this.rgb)
+private fun AwtColor.toCompose(): Color = Color(this.rgb)

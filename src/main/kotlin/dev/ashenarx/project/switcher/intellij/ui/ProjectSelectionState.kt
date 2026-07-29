@@ -19,12 +19,10 @@ internal fun rememberProjectSelection(allProjects: List<ProjectData>): ProjectSe
     val currentId = remember(allProjects) { allProjects.firstOrNull { it.isCurrent }?.id }
     val firstId = remember(allProjects) { allProjects.firstOrNull()?.id }
 
-    // initial: current -> first -> null
     val state = remember {
         ProjectSelectionState(initialSelectedId = currentId ?: firstId)
     }
 
-    // sync on changes
     LaunchedEffect(allProjects) {
         val ids = allProjects.asSequence().map { it.id }.toSet()
         if (state.selectedId in ids) return@LaunchedEffect

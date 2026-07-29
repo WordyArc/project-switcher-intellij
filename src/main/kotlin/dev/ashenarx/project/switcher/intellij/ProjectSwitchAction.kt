@@ -81,8 +81,6 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
                         val popup = currentPopup
                         popup?.cancel()
 
-                        // исполняем reopen уже после закрытия popup,
-                        // с нормальным IDE DataContext (frame / welcome screen)
                         ApplicationManager.getApplication().invokeLater(
                             {
                                 if (popup != null && popup.isDisposed) {
@@ -169,8 +167,6 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
         val contextComponent = getIdeContextComponent(currentProject) ?: return
         val dataContext = DataManager.getInstance().getDataContext(contextComponent)
 
-        // Если модификаторов нет — НЕ подсовываем KeyEvent:
-        // это дает стандартное поведение (модалка выбора окна).
         val inputEvent: InputEvent? =
             if (modifiersEx != 0) {
                 KeyEvent(
@@ -183,7 +179,6 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
                 )
             } else null
 
-        // Идиоматично: через Action System, с корректным DataContext
         ActionUtil.invokeAction(
             recentProject.action,
             dataContext,
@@ -194,11 +189,9 @@ class ProjectSwitchAction : DumbAwareAction("Switch Project") {
     }
 
     private fun getIdeContextComponent(currentProject: Project?): Component? {
-        // 1) если есть текущий проект - берем его frame/rootPane (самый “правильный” DataContext)
         val frame = currentProject?.let { WindowManager.getInstance().getFrame(it) }
         if (frame != null) return frame.rootPane
 
-        // 2) fallback: активный frame или welcome screen
         return ProjectUtil.getActiveFrameOrWelcomeScreen()
     }
 
