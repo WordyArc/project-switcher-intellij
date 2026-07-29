@@ -1,4 +1,4 @@
-package dev.owlmajin.project.switcher
+package dev.ashenarx.project.switcher.intellij
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -14,10 +14,10 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.popup.*
 import com.intellij.openapi.wm.WindowManager
-import dev.owlmajin.project.switcher.data.ProjectData
-import dev.owlmajin.project.switcher.data.ProjectDataService
-import dev.owlmajin.project.switcher.data.ProjectsData
-import dev.owlmajin.project.switcher.ui.ProjectSwitcherPopup
+import dev.ashenarx.project.switcher.intellij.data.ProjectData
+import dev.ashenarx.project.switcher.intellij.data.ProjectDataService
+import dev.ashenarx.project.switcher.intellij.data.ProjectsData
+import dev.ashenarx.project.switcher.intellij.ui.ProjectSwitcherPopup
 import org.jetbrains.jewel.bridge.JewelComposePanel
 import org.jetbrains.jewel.bridge.theme.SwingBridgeTheme
 import java.awt.Component

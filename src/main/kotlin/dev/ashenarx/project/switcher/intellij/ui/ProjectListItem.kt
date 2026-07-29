@@ -1,4 +1,4 @@
-package dev.owlmajin.project.switcher.ui
+package dev.ashenarx.project.switcher.intellij.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -14,14 +14,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import com.intellij.ui.JBColor
-import dev.owlmajin.project.switcher.data.ProjectData
+import dev.ashenarx.project.switcher.intellij.data.ProjectData
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.theme.simpleListItemStyle
+import java.awt.Color
 import javax.swing.Icon
 import javax.swing.JLabel
 import javax.swing.SwingConstants
@@ -139,7 +139,7 @@ private fun CurrentProjectIndicator(visible: Boolean, modifier: Modifier = Modif
 }
 
 @Composable
-private fun ProjectIcon(icon: Icon?, background: java.awt.Color) {
+private fun ProjectIcon(icon: Icon?, background: Color) {
     SwingPanel(
         modifier = Modifier.size(ICON_SIZE_DP.dp),
         factory = {
@@ -159,4 +159,4 @@ private fun ProjectIcon(icon: Icon?, background: java.awt.Color) {
     )
 }
 
-private fun java.awt.Color.toCompose(): Color = Color(this.rgb)
+private fun Color.toCompose(): Color = Color(this.rgb)

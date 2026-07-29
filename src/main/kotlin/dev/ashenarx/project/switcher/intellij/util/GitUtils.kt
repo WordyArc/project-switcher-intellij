@@ -1,4 +1,4 @@
-package dev.owlmajin.project.switcher.util
+package dev.ashenarx.project.switcher.intellij.util
 
 import com.intellij.openapi.util.io.FileUtil
 import java.io.File

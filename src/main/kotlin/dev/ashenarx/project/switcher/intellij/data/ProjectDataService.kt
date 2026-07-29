@@ -1,4 +1,4 @@
-package dev.owlmajin.project.switcher.data
+package dev.ashenarx.project.switcher.intellij.data
 
 import com.intellij.ide.RecentProjectsManagerBase
 import com.intellij.ide.ReopenProjectAction
@@ -6,7 +6,7 @@ import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.io.FileUtil
-import dev.owlmajin.project.switcher.util.GitUtils
+import dev.ashenarx.project.switcher.intellij.util.GitUtils
 import javax.swing.Icon
 
 private const val ICON_SIZE = 20

@@ -1,4 +1,4 @@
-package dev.owlmajin.project.switcher.ui
+package dev.ashenarx.project.switcher.intellij.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -6,7 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import dev.owlmajin.project.switcher.data.ProjectData
+import dev.ashenarx.project.switcher.intellij.data.ProjectData
 
 internal class ProjectSelectionState(
     initialSelectedId: String?

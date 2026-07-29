@@ -6,8 +6,8 @@
     <depends>com.intellij.modules.compose</depends>
 
     <actions>
-        <action id="dev.owlmajin.project.switcher.ProjectSwitchAction"
-                class="dev.owlmajin.project.switcher.ProjectSwitchAction"
+        <action id="dev.ashenarx.project.switcher.intellij.ProjectSwitchAction"
+                class="dev.ashenarx.project.switcher.intellij.ProjectSwitchAction"
                 text="Switch Project">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
             <keyboard-shortcut keymap="$default" first-keystroke="alt F2"/>

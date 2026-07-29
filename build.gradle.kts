@@ -3,23 +3,23 @@ import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
-    id("java") // Java support
-    alias(libs.plugins.kotlin) // Kotlin support
-    alias(libs.plugins.intelliJPlatform) // IntelliJ Platform Gradle Plugin
-    alias(libs.plugins.changelog) // Gradle Changelog Plugin
-    alias(libs.plugins.composeCompiler) // Gradle Compose Compiler Plugin
+    id("java")
+    alias(libs.plugins.kotlin)
+    alias(libs.plugins.intelliJPlatform)
+    alias(libs.plugins.changelog)
+    alias(libs.plugins.composeCompiler)
 }
 
-group = "dev.owlmajin.project.switcher"
+group = "dev.ashenarx.project.switcher.intellij"
 version = "0.1.0"
 val pluginRepositoryUrl = "https://github.com/WordyArc/ProjectSwitcher"
-val pluginSinceBuild = "253"
+val pluginSinceBuild = "262"
 val pluginName= "Project Switcher"
-val platformVersion = "2025.3"
+val platformVersion = "2026.2"
 
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 
     compilerOptions {
         freeCompilerArgs.addAll(

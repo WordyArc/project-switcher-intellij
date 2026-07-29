@@ -1,4 +1,4 @@
-package dev.owlmajin.project.switcher.data
+package dev.ashenarx.project.switcher.intellij.data
 
 import com.intellij.ide.ReopenProjectAction
 import com.intellij.openapi.project.Project

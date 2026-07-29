@@ -1,4 +1,4 @@
-package dev.owlmajin.project.switcher.ui
+package dev.ashenarx.project.switcher.intellij.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,13 +21,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.util.IconLoader
 import com.intellij.ui.JBColor
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.Text
+import java.awt.Color
 import javax.swing.Icon
 import javax.swing.JLabel
 import javax.swing.SwingConstants
@@ -150,4 +150,4 @@ private fun PlatformIcon(
     )
 }
 
-private fun java.awt.Color.toCompose(): Color = Color(this.rgb)
+private fun Color.toCompose(): Color = Color(this.rgb)

@@ -1,4 +1,4 @@
-package dev.owlmajin.project.switcher.ui
+package dev.ashenarx.project.switcher.intellij.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -23,8 +23,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import dev.owlmajin.project.switcher.data.ProjectData
-import dev.owlmajin.project.switcher.data.ProjectsData
+import dev.ashenarx.project.switcher.intellij.data.ProjectData
+import dev.ashenarx.project.switcher.intellij.data.ProjectsData
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.Text
 

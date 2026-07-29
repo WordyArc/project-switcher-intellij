@@ -1,4 +1,4 @@
-package dev.owlmajin.project.switcher.ui
+package dev.ashenarx.project.switcher.intellij.ui
 
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.ui.input.key.Key
@@ -11,7 +11,7 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.utf16CodePoint
-import dev.owlmajin.project.switcher.data.ProjectData
+import dev.ashenarx.project.switcher.intellij.data.ProjectData
 import java.awt.event.InputEvent
 
 internal fun handleProjectSwitcherKeyEvent(

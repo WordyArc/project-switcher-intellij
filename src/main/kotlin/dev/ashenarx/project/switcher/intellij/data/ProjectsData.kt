@@ -1,4 +1,4 @@
-package dev.owlmajin.project.switcher.data
+package dev.ashenarx.project.switcher.intellij.data
 
 data class ProjectsData(
     val openProjects: List<ProjectData.Open>,
