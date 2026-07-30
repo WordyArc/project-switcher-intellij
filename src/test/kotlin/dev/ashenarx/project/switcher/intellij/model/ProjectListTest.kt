@@ -56,6 +56,44 @@ class ProjectListTest {
     }
 
     @Test
+    fun `topMatch reaches across the section boundary`() {
+        val list = ProjectList(
+            open = listOf(open("alpha", "/a")),
+            recent = listOf(recent("beta", "/b")),
+        )
+
+        // The head of the recent section outscores the open one, so it must win despite ranking below.
+        assertEquals("recent:/b", list.topMatch { text -> if (text.startsWith("beta")) 900 else 100 }?.id)
+        assertEquals("open:hash-alpha", list.topMatch { text -> if (text.startsWith("beta")) 100 else 900 }?.id)
+    }
+
+    @Test
+    fun `topMatch breaks a tie in favour of the open project`() {
+        val list = ProjectList(
+            open = listOf(open("alpha", "/a")),
+            recent = listOf(recent("beta", "/b")),
+        )
+
+        assertEquals("open:hash-alpha", list.topMatch { 500 }?.id)
+    }
+
+    @Test
+    fun `topMatch of an empty list is null`() {
+        assertNull(ProjectList.EMPTY.topMatch { 1 })
+    }
+
+    @Test
+    fun `topMatch ignores everything below each section head`() {
+        val list = ProjectList(
+            open = listOf(open("alpha", "/a"), open("zeta", "/z")),
+            recent = listOf(recent("beta", "/b")),
+        )
+
+        // "zeta" scores highest but is not a head, so it cannot be the pre-selection.
+        assertEquals("recent:/b", list.topMatch { text -> if (text.startsWith("zeta")) 999 else if (text.startsWith("beta")) 500 else 100 }?.id)
+    }
+
+    @Test
     fun `moveSelection walks the combined list across the section boundary`() {
         val items = listOf(open("alpha", "/a"), recent("beta", "/b"), recent("gamma", "/c"))
 

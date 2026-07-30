@@ -62,13 +62,13 @@ internal fun ProjectSwitcherPopup(
     // query here. Constructing one only precomputes per-character tables over the pattern.
     val matcher = remember(searchState.searchText) { ProjectMatcher(searchState.searchText) }
 
-    val filtered = if (searchState.searchText.isBlank()) {
-        model.projects
-    } else {
-        model.projects.rankedBy(matcher::degreeOrNull)
-    }
+    val hasQuery = searchState.searchText.isNotBlank()
+    val filtered = if (hasQuery) model.projects.rankedBy(matcher::degreeOrNull) else model.projects
+    val preferred = if (hasQuery) filtered.topMatch(matcher::degreeOrNull) else null
 
-    LaunchedEffect(filtered) { model.ensureSelectionVisible(filtered.all) }
+    // Keyed on the outcome rather than the query, so arrow keys keep their selection while the
+    // result set holds still, and a query that only reshuffles the scores still re-points it.
+    LaunchedEffect(filtered, preferred) { model.resetSelection(filtered.all, preferred) }
 
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }

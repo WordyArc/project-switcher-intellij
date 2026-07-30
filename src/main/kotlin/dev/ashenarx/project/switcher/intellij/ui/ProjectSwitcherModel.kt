@@ -42,14 +42,20 @@ internal class ProjectSwitcherModel(private val currentProject: Project?) {
             withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
                 projects = loaded
                 isLoading = false
-                selectedId = defaultSelection(loaded.all)
             }
         }
     }
 
-    fun ensureSelectionVisible(visible: List<ProjectItem>) {
-        if (visible.none { it.id == selectedId }) {
-            selectedId = defaultSelection(visible)
-        }
+    /**
+     * Re-points the selection at whatever the visible list now means. [preferred] carries the search
+     * query's best match; without a query there is none, and the current project wins instead — the
+     * right answer for an unfiltered list, but a trap for a filtered one, since re-selecting the
+     * project you are already in makes Enter a no-op.
+     *
+     * Callers must invoke this only when the list or the preference actually changed, so that arrow
+     * keys keep their selection in between.
+     */
+    fun resetSelection(visible: List<ProjectItem>, preferred: ProjectItem?) {
+        selectedId = preferred?.id ?: defaultSelection(visible)
     }
 }

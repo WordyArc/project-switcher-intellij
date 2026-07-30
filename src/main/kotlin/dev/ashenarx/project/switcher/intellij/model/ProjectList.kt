@@ -21,6 +21,15 @@ data class ProjectList(
         )
     }
 
+    /**
+     * The best-scoring item across both sections, for pre-selecting what a query most likely meant.
+     * [rankedBy] already put the winner of each section at its head, so only those two can compete;
+     * a tie goes to the open project, whose row is the cheaper thing to activate by accident.
+     */
+    fun topMatch(score: (String) -> Int?): ProjectItem? =
+        listOfNotNull(open.firstOrNull(), recent.firstOrNull())
+            .maxByOrNull { score(it.searchText) ?: Int.MIN_VALUE }
+
     companion object {
         val EMPTY = ProjectList(emptyList(), emptyList())
     }
