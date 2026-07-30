@@ -33,10 +33,10 @@ import dev.ashenarx.project.switcher.intellij.ProjectSwitcherBundle
 import dev.ashenarx.project.switcher.intellij.model.OpenTarget
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
+import dev.ashenarx.project.switcher.intellij.model.ProjectMatcher
 import dev.ashenarx.project.switcher.intellij.model.moveSelection
 import dev.ashenarx.project.switcher.intellij.model.searchText
 import kotlinx.coroutines.flow.MutableStateFlow
-import org.jetbrains.jewel.foundation.search.SpeedSearchMatcher
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.SpeedSearchArea
 import org.jetbrains.jewel.ui.component.SpeedSearchScope
@@ -50,7 +50,7 @@ internal fun ProjectSwitcherPopup(
     onSelectOpen: (ProjectItem.Open) -> Unit,
     onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
 ) {
-    val searchState = rememberSpeedSearchState { text -> SpeedSearchMatcher.patternMatcher(text) }
+    val searchState = rememberSpeedSearchState { text -> ProjectMatcher(text) }
 
     // A SpeedSearchState computes matches — and publishes `searchText` at all — only while `attach`
     // is collecting. Detached, it reports a permanently empty query.
@@ -58,14 +58,14 @@ internal fun ProjectSwitcherPopup(
     LaunchedEffect(model.projects) { entries.value = model.projects.all.map { it.searchText } }
     LaunchedEffect(searchState, entries) { searchState.attach(entries) }
 
-    // Not remembered: the match table and `searchText` are published in one snapshot, so a
-    // `remember` keyed on the query would go stale when matches arrive without the query changing.
+    // Ranking needs the matcher itself, which the state keeps to itself, so it is rebuilt from the
+    // query here. Constructing one only precomputes per-character tables over the pattern.
+    val matcher = remember(searchState.searchText) { ProjectMatcher(searchState.searchText) }
+
     val filtered = if (searchState.searchText.isBlank()) {
         model.projects
     } else {
-        model.projects.filter { text ->
-            searchState.matchResultForText(text) is SpeedSearchMatcher.MatchResult.Match
-        }
+        model.projects.rankedBy(matcher::degreeOrNull)
     }
 
     LaunchedEffect(filtered) { model.ensureSelectionVisible(filtered.all) }

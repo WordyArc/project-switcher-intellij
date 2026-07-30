@@ -7,25 +7,52 @@ import org.junit.jupiter.api.Test
 class ProjectListTest {
 
     @Test
-    fun `filter keeps items matching by name or path`() {
+    fun `rankedBy keeps items matching by name or path`() {
         val list = ProjectList(
             open = listOf(open("alpha", "/home/me/alpha")),
             recent = listOf(recent("beta", "/work/beta"), recent("gamma", "/home/me/gamma")),
         )
 
-        val byName = list.filter { it.contains("beta") }
+        val byName = list.rankedBy { text -> 0.takeIf { text.contains("beta") } }
         assertEquals(emptyList<ProjectItem.Open>(), byName.open)
         assertEquals(listOf("recent:/work/beta"), byName.recent.map { it.id })
 
-        val byPath = list.filter { it.contains("/home/me") }
+        val byPath = list.rankedBy { text -> 0.takeIf { text.contains("/home/me") } }
         assertEquals(listOf("open:hash-alpha", "recent:/home/me/gamma"), byPath.all.map { it.id })
     }
 
     @Test
-    fun `filter that matches nothing yields an empty list`() {
+    fun `rankedBy that matches nothing yields an empty list`() {
         val list = ProjectList(open = listOf(open("alpha", "/a")), recent = listOf(recent("beta", "/b")))
 
-        assertEquals(true, list.filter { false }.isEmpty)
+        assertEquals(true, list.rankedBy { null }.isEmpty)
+    }
+
+    @Test
+    fun `rankedBy sorts by score inside a section without merging the two`() {
+        val list = ProjectList(
+            open = listOf(open("alpha", "/a"), open("beta", "/b")),
+            recent = listOf(recent("gamma", "/c"), recent("delta", "/d")),
+        )
+
+        // Scores the trailing items highest, so both sections must reverse independently.
+        val ranked = list.rankedBy { text -> if (text.startsWith("beta") || text.startsWith("delta")) 10 else 1 }
+
+        assertEquals(listOf("open:hash-beta", "open:hash-alpha"), ranked.open.map { it.id })
+        assertEquals(listOf("recent:/d", "recent:/c"), ranked.recent.map { it.id })
+    }
+
+    @Test
+    fun `rankedBy leaves equally scored items in their original order`() {
+        val list = ProjectList(
+            open = emptyList(),
+            recent = listOf(recent("gamma", "/c"), recent("delta", "/d"), recent("epsilon", "/e")),
+        )
+
+        assertEquals(
+            listOf("recent:/c", "recent:/d", "recent:/e"),
+            list.rankedBy { 7 }.recent.map { it.id },
+        )
     }
 
     @Test
