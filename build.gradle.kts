@@ -25,10 +25,17 @@ repositories {
 }
 
 dependencies {
+    testImplementation(libs.junitJupiter)
+    testRuntimeOnly(libs.junitPlatformLauncher)
+
     intellijPlatform {
         intellijIdea(providers.gradleProperty("platformVersion"))
         composeUI()
     }
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 // https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-extension.html
@@ -36,7 +43,7 @@ intellijPlatform {
     pluginConfiguration {
         ideaVersion {
             sinceBuild = providers.gradleProperty("pluginSinceBuild")
-            // Open-ended: no upper bound on the supported platform build.
+            // Left open-ended; otherwise the bound is derived from platformVersion.
             untilBuild = provider { null }
         }
     }

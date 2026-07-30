@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>dev.ashenarx.project.switcher.intellij</id>
+    <id>dev.ashenarx.project-switcher</id>
     <name>Project Switcher</name>
     <vendor url="https://github.com/WordyArc">ashenarx</vendor>
 
@@ -13,11 +13,11 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.compose</depends>
 
+    <resource-bundle>messages.ProjectSwitcherBundle</resource-bundle>
+
     <actions>
-        <action id="dev.ashenarx.project.switcher.intellij.ProjectSwitchAction"
-                class="dev.ashenarx.project.switcher.intellij.ProjectSwitchAction"
-                text="Switch Project"
-                description="Open a searchable popup to switch between recent projects">
+        <action id="ProjectSwitcher.SwitchProject"
+                class="dev.ashenarx.project.switcher.intellij.ProjectSwitchAction">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
             <keyboard-shortcut keymap="$default" first-keystroke="alt F2"/>
         </action>

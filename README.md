@@ -5,6 +5,25 @@ An IntelliJ IDEA plugin for fast, keyboard-driven switching between recent proje
 Press <kbd>Alt</kbd>+<kbd>F2</kbd> to open a searchable popup listing your recent projects with their
 icons and current Git branch. Filter as you type, then hit <kbd>Enter</kbd> to switch.
 
+## Shortcuts
+
+| Key                                        | Action                                          |
+|--------------------------------------------|-------------------------------------------------|
+| <kbd>Alt</kbd>+<kbd>F2</kbd>               | Open the popup — press again to close it        |
+| Any printable character                    | Filter the list                                 |
+| <kbd>↑</kbd> / <kbd>↓</kbd>                | Move the selection                              |
+| <kbd>Enter</kbd>                           | Open the selection, letting the IDE ask where   |
+| <kbd>Shift</kbd>+<kbd>Enter</kbd>          | Open in the **current** window, without asking  |
+| <kbd>Ctrl</kbd>+<kbd>Enter</kbd>           | Open in a **new** window                        |
+| <kbd>Esc</kbd>                             | Clear the filter, or close the popup            |
+
+Plain <kbd>Enter</kbd> follows <kbd>Settings</kbd> → <kbd>Appearance & Behavior</kbd> →
+<kbd>System Settings</kbd> → <kbd>Open project in</kbd>, so it shows the "New Window / This Window"
+question only while that is set to ask. The modifiers override it either way.
+
+Already-open projects are listed first and are always just focused; the modifiers apply to the
+**Recent** section.
+
 ## Requirements
 
 - IntelliJ IDEA **2026.2** or newer (build `262+`)

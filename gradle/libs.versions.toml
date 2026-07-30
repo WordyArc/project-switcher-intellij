@@ -1,6 +1,11 @@
 [versions]
 intellijPlatform = "2.18.1"
+junit = "6.1.2"
 kotlin = "2.4.10"
+
+[libraries]
+junitJupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+junitPlatformLauncher = { module = "org.junit.platform:junit-platform-launcher" }
 
 [plugins]
 intellijPlatform = { id = "org.jetbrains.intellij.platform", version.ref = "intellijPlatform" }
