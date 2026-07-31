@@ -9,11 +9,7 @@ data class ProjectList(
     val hasRecent: Boolean get() = recent.isNotEmpty()
     val isEmpty: Boolean get() = all.isEmpty()
 
-    /**
-     * Keeps the items [score] accepts, best first. Ranking stays inside each section so the
-     * open/recent split survives, and the sort is stable, which leaves items the matcher rates
-     * equally in the recency order they arrived in.
-     */
+    /** Ranks each section independently, preserving input order for equal scores. */
     fun rankedBy(score: (String) -> Int?): ProjectList {
         return ProjectList(
             open = open.ranked(score),
@@ -21,11 +17,7 @@ data class ProjectList(
         )
     }
 
-    /**
-     * The best-scoring item across both sections, for pre-selecting what a query most likely meant.
-     * [rankedBy] already put the winner of each section at its head, so only those two can compete;
-     * a tie goes to the open project, whose row is the cheaper thing to activate by accident.
-     */
+    /** Compares the already-ranked section heads; ties favor an open project. */
     fun topMatch(score: (String) -> Int?): ProjectItem? =
         listOfNotNull(open.firstOrNull(), recent.firstOrNull())
             .maxByOrNull { score(it.searchText) ?: Int.MIN_VALUE }
@@ -54,11 +46,6 @@ fun moveSelection(items: List<ProjectItem>, selectedId: String?, delta: Int): St
 fun defaultSelection(items: List<ProjectItem>): String? =
     (items.firstOrNull { it.isCurrent } ?: items.firstOrNull())?.id
 
-/**
- * Where the selection should land once [removedId] is gone. Without this the rebuilt list falls back
- * to [defaultSelection] and the selection jumps to the top, which makes deleting several entries in
- * a row unusable.
- */
 fun selectionAfterRemoving(items: List<ProjectItem>, removedId: String?): String? {
     val index = items.indexOfFirst { it.id == removedId }
     if (index < 0) return null

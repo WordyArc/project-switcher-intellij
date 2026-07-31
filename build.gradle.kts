@@ -38,7 +38,6 @@ tasks.test {
     useJUnitPlatform()
 }
 
-// https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-extension.html
 intellijPlatform {
     pluginConfiguration {
         ideaVersion {

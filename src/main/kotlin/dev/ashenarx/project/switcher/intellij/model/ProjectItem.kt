@@ -1,7 +1,5 @@
 package dev.ashenarx.project.switcher.intellij.model
 
-
-/** Deliberately carries no icon; the popup keeps those in a map keyed by [path]. */
 sealed interface ProjectItem {
     val id: String
     val displayName: String

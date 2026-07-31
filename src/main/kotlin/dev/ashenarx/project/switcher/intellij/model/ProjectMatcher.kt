@@ -7,13 +7,8 @@ import org.jetbrains.jewel.foundation.search.SpeedSearchMatcher
 import org.jetbrains.jewel.foundation.search.SpeedSearchMatcher.MatchResult
 
 /**
- * Bridges Jewel's speed search onto the platform's [MinusculeMatcher].
- *
- * Jewel's own `SpeedSearchMatcher.patternMatcher` is a Compose-side port of `MinusculeMatcherImpl`
- * and stops at camel humps. Delegating to the platform buys the wrapper layers that
- * `NameUtil.MatcherBuilder.build` adds for free: `FixingLayoutTypoTolerantMatcher` both retries the
- * query through the keyboard layout the user is actually typing in and forgives an adjacent-key
- * slip, and `PinyinMatcher` on top of it covers Chinese.
+ * Uses the platform matcher instead of Jewel's port to retain keyboard-layout correction, typo
+ * tolerance, and Pinyin matching.
  */
 internal class ProjectMatcher(query: String) : SpeedSearchMatcher {
 
@@ -31,10 +26,6 @@ internal class ProjectMatcher(query: String) : SpeedSearchMatcher {
         }
     }
 
-    /**
-     * The platform's relevance score for [text], or `null` when it does not match at all. Higher is
-     * better; the scale is arbitrary and only comparable between calls on the same matcher.
-     */
     fun degreeOrNull(text: String): Int? {
         val matcher = delegate ?: return null
         val fragments = matcher.match(text) ?: return null
@@ -43,10 +34,7 @@ internal class ProjectMatcher(query: String) : SpeedSearchMatcher {
     }
 }
 
-/**
- * The pattern shape `SpeedSearchComparator` feeds the platform: words joined by `*` so one query can
- * skip across humps, plus a leading `*` so it need not match from the start of the name.
- */
+/** Builds the wildcard pattern expected by the platform's speed-search matcher. */
 private fun String.toPatternOrNull(): String? {
     if (isBlank()) return null
 

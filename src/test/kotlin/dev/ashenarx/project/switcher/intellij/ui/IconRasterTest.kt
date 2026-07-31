@@ -14,7 +14,6 @@ import javax.swing.Icon
 
 class IconRasterTest {
 
-    /** Fills its whole logical bounds, so any gap in the raster is the scaling being wrong. */
     private class FullBleedIcon(private val size: Int) : Icon {
         override fun paintIcon(c: Component?, g: Graphics, x: Int, y: Int) {
             g.color = Color.RED
@@ -48,12 +47,7 @@ class IconRasterTest {
         assertTrue(image.width >= 1 && image.height >= 1, "got ${image.width}x${image.height}")
     }
 
-    /**
-     * The regression that the synthetic icon above cannot catch. A real `ProjectFileIcon` decides how
-     * big to draw by inspecting the graphics it is given, so only the genuine article proves the
-     * raster and the paint agree. This is the class behind `.idea/icon.png`, the one that rendered
-     * shrunken into the top-left corner.
-     */
+    // A real ProjectFileIcon sizes itself from the graphics context, unlike FullBleedIcon.
     @Test
     fun `a real project icon covers the raster it is measured for`() {
         val icon = RecentProjectIconHelper.createIcon(data = opaquePng(64), svg = false, size = 20)
@@ -62,19 +56,11 @@ class IconRasterTest {
         assertEquals(icon.iconWidth, image.width)
         assertEquals(icon.iconHeight, image.height)
 
-        // Measured: painted through a 2x-transformed graphics this same icon covers only
-        // (0,0)..(19,19) of a 40x40 canvas — half the width, up in the corner, which is the defect.
         assertOpaque(image, 0, 0)
         assertOpaque(image, image.width - 1, image.height - 1)
         assertOpaque(image, image.width / 2, image.height / 2)
     }
 
-    /**
-     * Sharpness on a HiDPI screen rests on this: the raster has no way to add detail, so the only
-     * lever is the size the icon was requested at. If a larger request stopped widening the bitmap,
-     * the crisp pass of `RecentProjectsService.iconSizePasses` would silently become a no-op that
-     * costs a second round of disk reads and buys nothing.
-     */
     @Test
     fun `a larger requested size reaches the raster`() {
         val png = opaquePng(128)

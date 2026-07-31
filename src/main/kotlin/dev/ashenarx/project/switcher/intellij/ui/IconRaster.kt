@@ -6,16 +6,8 @@ import kotlin.math.max
 import javax.swing.Icon as SwingIcon
 
 /**
- * Paints [this] into a bitmap of its own logical size, through a graphics carrying no scale
- * transform.
- *
- * The absent transform is the whole point. A `ProjectFileIcon` — what `.idea/icon.png` loads as —
- * negotiates its resolution against the graphics it is handed: it sizes the bitmap by
- * `JBUI.pixScale(g.deviceConfiguration)` but reports its logical size by dividing through
- * `JBUIScale.sysScale(g)`, read off the graphics transform. Offscreen those disagree, since a
- * device configuration is always unscaled there, so any transform makes the icon declare itself
- * smaller than it drew and paint into the top-left of an oversized canvas. `IconUtil.toImage`
- * trips on this too, by way of the HiDPI-backed image it paints into.
+ * ProjectFileIcon derives two dimensions from the graphics device and transform. Those disagree on
+ * an offscreen HiDPI canvas, shrinking the icon into one corner, so rasterize without a transform.
  */
 internal fun SwingIcon.rasterize(): BufferedImage {
     @Suppress("UndesirableClassUsage") // A raw canvas is intended: no hidden HiDPI scaling wanted.

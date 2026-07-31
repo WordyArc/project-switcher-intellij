@@ -22,23 +22,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.swing.Icon
 
-/**
- * Plain Compose state rather than an `androidx.lifecycle.ViewModel`: the platform's Compose bundle
- * ships lifecycle-runtime but not lifecycle-viewmodel, and a [com.intellij.openapi.ui.popup.JBPopup]
- * has no `ViewModelStoreOwner` to scope one to anyway. The scope comes from an application service,
- * so loading is cancelled with the plugin rather than leaking a pooled thread.
- */
+/** Compose state scoped explicitly because a JBPopup has no ViewModelStoreOwner. */
 @Stable
 internal class ProjectSwitcherModel(private val currentProject: Project?) {
 
     var projects: ProjectList by mutableStateOf(ProjectList.EMPTY)
         private set
 
-    /**
-     * Kept beside [projects] rather than inside it. Folding an icon into a [ProjectItem] would make
-     * every arrival a fresh [ProjectList], which re-runs the effects keyed on it — throwing away the
-     * selection the user just moved with the arrow keys, once per icon.
-     */
+    // Keeping icons separate prevents each arrival from resetting effects keyed on the project list.
     val icons: SnapshotStateMap<String, Icon> = mutableStateMapOf()
 
     var isLoading: Boolean by mutableStateOf(true)
@@ -70,13 +61,7 @@ internal class ProjectSwitcherModel(private val currentProject: Project?) {
         }
     }
 
-    /**
-     * Closes an open project, or forgets a recent one, then rebuilds the list from the platform
-     * rather than editing it here — closing a project does not remove it, it moves it into the
-     * recent section, and only the platform knows the result.
-     *
-     * [visible] must be the *filtered* list, since that is what the surviving selection comes from.
-     */
+    /** Reloads platform state because a closed project moves into the recent section. */
     fun delete(item: ProjectItem, visible: List<ProjectItem>) {
         pendingSelection = selectionAfterRemoving(visible, item.id)
 
@@ -88,21 +73,12 @@ internal class ProjectSwitcherModel(private val currentProject: Project?) {
         load()
     }
 
-    /** The scope belongs to an application service, so nothing else would stop the icon reads. */
     fun cancel() {
         job?.cancel()
         job = null
     }
 
-    /**
-     * Re-points the selection at whatever the visible list now means. [preferred] carries the search
-     * query's best match; without a query there is none, and the current project wins instead — the
-     * right answer for an unfiltered list, but a trap for a filtered one, since re-selecting the
-     * project you are already in makes Enter a no-op.
-     *
-     * Callers must invoke this only when the list or the preference actually changed, so that arrow
-     * keys keep their selection in between.
-     */
+    /** Call only when list content or [preferred] changes, so arrow-key selection is not overwritten. */
     fun resetSelection(visible: List<ProjectItem>, preferred: ProjectItem?) {
         val pending = pendingSelection?.also { pendingSelection = null }
 

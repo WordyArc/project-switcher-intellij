@@ -6,11 +6,7 @@ import com.intellij.openapi.ui.popup.JBPopupListener
 import com.intellij.openapi.ui.popup.LightweightWindowEvent
 import java.util.concurrent.atomic.AtomicReference
 
-/**
- * An application service rather than a `companion object` field: the state is still global, but the
- * platform owns and disposes it. The compare-and-set on close means a popup that was already
- * superseded cannot clear a newer one's registration.
- */
+/** The compare-and-set prevents an older popup's close event from unregistering a newer one. */
 @Service(Service.Level.APP)
 internal class ProjectSwitcherPopupTracker {
 

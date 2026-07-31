@@ -35,7 +35,6 @@ class ProjectListTest {
             recent = listOf(recent("gamma", "/c"), recent("delta", "/d")),
         )
 
-        // Scores the trailing items highest, so both sections must reverse independently.
         val ranked = list.rankedBy { text -> if (text.startsWith("beta") || text.startsWith("delta")) 10 else 1 }
 
         assertEquals(listOf("open:hash-beta", "open:hash-alpha"), ranked.open.map { it.id })
@@ -62,7 +61,6 @@ class ProjectListTest {
             recent = listOf(recent("beta", "/b")),
         )
 
-        // The head of the recent section outscores the open one, so it must win despite ranking below.
         assertEquals("recent:/b", list.topMatch { text -> if (text.startsWith("beta")) 900 else 100 }?.id)
         assertEquals("open:hash-alpha", list.topMatch { text -> if (text.startsWith("beta")) 100 else 900 }?.id)
     }
@@ -89,7 +87,6 @@ class ProjectListTest {
             recent = listOf(recent("beta", "/b")),
         )
 
-        // "zeta" scores highest but is not a head, so it cannot be the pre-selection.
         assertEquals("recent:/b", list.topMatch { text -> if (text.startsWith("zeta")) 999 else if (text.startsWith("beta")) 500 else 100 }?.id)
     }
 
@@ -153,7 +150,6 @@ class ProjectListTest {
         assertNull(selectionAfterRemoving(emptyList(), "recent:/a"))
     }
 
-    /** The successor comes from the flat visible list, so the section header is not in its way. */
     @Test
     fun `selection after removing the last open item lands on the first recent one`() {
         val items = listOf(open("a", "/a"), recent("b", "/b"))

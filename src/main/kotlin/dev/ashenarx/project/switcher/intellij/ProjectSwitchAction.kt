@@ -35,8 +35,7 @@ class ProjectSwitchAction : DumbAwareAction() {
 
         var popup: JBPopup? = null
 
-        // Opening a project has to happen *after* the popup is gone, otherwise the new frame fights
-        // the closing one for focus. setFinalRunnable is the platform's hook for exactly that.
+        // Opening before the popup closes causes the old and new frames to fight for focus.
         var onClosed: (() -> Unit)? = null
 
         val panel = JewelComposePanel {
@@ -66,7 +65,7 @@ class ProjectSwitchAction : DumbAwareAction() {
 
         popup = createPopup(panel).also {
             it.setFinalRunnable { onClosed?.invoke() }
-            // Icons keep streaming in after the list, on a scope that outlives this popup.
+            // Icon loading runs on an application scope and must stop with this popup.
             it.addListener(object : JBPopupListener {
                 override fun onClosed(event: LightweightWindowEvent) = model.cancel()
             })

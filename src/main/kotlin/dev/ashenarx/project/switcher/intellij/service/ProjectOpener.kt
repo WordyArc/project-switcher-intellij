@@ -37,20 +37,14 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
         ProjectUtil.focusProjectWindow(project, true)
     }
 
-    /**
-     * Mirrors the platform's own Close Project action, whose surrounding calls are not decoration:
-     * the frame bounds have to be recorded before the frame goes, or the next project opens at the
-     * wrong size. [ProjectManager.closeAndDispose] itself runs the `canClose` handlers that guard
-     * unsaved work and running processes, which is why this asks nothing of its own.
-     */
+    /** Mirrors the platform action so frame bounds and `canClose` handlers are preserved. */
     fun close(item: ProjectItem.Open) {
         val project = openProjectOf(item) ?: return
 
         WindowManager.getInstance().updateDefaultFrameInfoOnProjectClose(project)
         WriteIntentReadAction.run { ProjectManager.getInstance().closeAndDispose(project) }
 
-        // The platform cannot tell this from a close that is part of exiting, so the recent-projects
-        // bookkeeping and the welcome frame are left to whoever asked for it.
+        // closeAndDispose cannot distinguish this from an application exit, so do its UI cleanup.
         RecentProjectsManager.getInstance().updateLastProjectPath()
         WelcomeFrame.showIfNoProjectOpened()
     }
@@ -60,15 +54,8 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
             .firstOrNull { !it.isDisposed && it.locationHash == item.locationHash }
 
     /**
-     * The project is opened here rather than by replaying [ReopenProjectAction], because that action
-     * can only express two of the three outcomes: it reduces the event to "new frame or no
-     * preference", and no preference still leaves the platform free to ask "New Window / This
-     * Window". [OpenTarget.CurrentWindow] has to suppress that question, and
-     * [OpenProjectTask.forceReuseFrame] is the only switch for it.
-     *
-     * The cost is the action's `ProjectDetector` open-logging and project-group bookkeeping.
-     * Everything that decides *how* the project opens, remote (Eel) initialization included, lives
-     * below [RecentProjectsManagerBase.openProject] and is unaffected.
+     * ReopenProjectAction cannot force reuse of the current frame. Opening through the manager gives
+     * [OpenTarget.CurrentWindow] access to [OpenProjectTask.forceReuseFrame].
      */
     fun reopen(item: ProjectItem.Recent, target: OpenTarget, contextProject: Project?) {
         val file = Path.of(item.path).normalize()

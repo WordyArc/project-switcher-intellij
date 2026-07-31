@@ -54,29 +54,25 @@ internal fun ProjectSwitcherPopup(
 ) {
     val searchState = rememberSpeedSearchState { text -> ProjectMatcher(text) }
 
-    // A SpeedSearchState computes matches — and publishes `searchText` at all — only while `attach`
-    // is collecting. Detached, it reports a permanently empty query.
+    // SpeedSearchState only updates searchText while attach is collecting entries.
     val entries = remember { MutableStateFlow<List<String?>>(emptyList()) }
     LaunchedEffect(model.projects) { entries.value = model.projects.all.map { it.searchText } }
     LaunchedEffect(searchState, entries) { searchState.attach(entries) }
 
-    // Ranking needs the matcher itself, which the state keeps to itself, so it is rebuilt from the
-    // query here. Constructing one only precomputes per-character tables over the pattern.
+    // SpeedSearchState does not expose its matcher, which ranking also needs.
     val matcher = remember(searchState.searchText) { ProjectMatcher(searchState.searchText) }
 
     val hasQuery = searchState.searchText.isNotBlank()
     val filtered = if (hasQuery) model.projects.rankedBy(matcher::degreeOrNull) else model.projects
     val preferred = if (hasQuery) filtered.topMatch(matcher::degreeOrNull) else null
 
-    // Keyed on the outcome rather than the query, so arrow keys keep their selection while the
-    // result set holds still, and a query that only reshuffles the scores still re-points it.
+    // Reset only when ranking changes, not on every query keystroke.
     LaunchedEffect(filtered, preferred) { model.resetSelection(filtered.all, preferred) }
 
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    // The query overlay is a child popup that takes focus itself, so the built-in dismiss-on-focus-loss
-    // rule would hide it the moment it opens; Escape and the enclosing JBPopup dismiss instead.
+    // The search overlay takes focus, so focus-loss dismissal would immediately hide it.
     SpeedSearchArea(state = searchState, dismissOnLoseFocus = false, modifier = Modifier.fillMaxSize()) {
         val searchScope = this
 
@@ -135,14 +131,12 @@ private fun ProjectRows(
 ) {
     val listState = rememberLazyListState()
 
-    // Without this a selection moved by the arrow keys silently scrolls out of view.
     LaunchedEffect(selectedId, data) {
         val row = data.rowIndexOf(selectedId)
         if (row >= 0) listState.animateScrollToItem(row)
     }
 
-    // The icon lookups belong inside the item scopes, not hoisted out of them: that is what keeps an
-    // arriving icon to a one-row recomposition.
+    // Reading each icon inside its item scope limits arrivals to one-row recompositions.
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
         items(data.open, key = { it.id }) { item ->
             ProjectRow(
@@ -170,7 +164,6 @@ private fun ProjectRows(
     }
 }
 
-/** Lazy-list index of [id] — the recent block is offset by one for the section header row. */
 private fun ProjectList.rowIndexOf(id: String?): Int {
     if (id == null) return -1
 
@@ -230,15 +223,12 @@ private fun handleKeyEvent(
             true
         }
 
-        // The query gets first refusal: Jewel edits the search text with these keys and declines them
-        // only once it is empty, which is exactly when they can mean the selected project instead.
-        // Backspace is here because it is the key labelled "delete" on a Mac keyboard.
+        // Let Jewel clear a non-empty query before treating these keys as project deletion.
         Key.Delete, Key.Backspace -> {
             if (!scope.processKeyEvent(event)) deleteSelection(items, model, onCloseCurrent)
             true
         }
 
-        // hideSearch() reports whether there was a query to dismiss; only then is the popup kept.
         Key.Escape -> {
             if (!scope.speedSearchState.hideSearch()) onClose()
             true
@@ -248,12 +238,7 @@ private fun handleKeyEvent(
     }
 }
 
-/**
- * Closing the current project is refused while other windows are open: that row is the default
- * selection, so one stray keystroke would close the window you are working in when you meant to
- * switch away from it. Alone it is unambiguous, but the close still outlives the popup — it disposes
- * the frame the popup sits in — so it goes back to the action, the route opening a project takes.
- */
+/** Refuses to close the current project when another project is available to switch to. */
 private fun deleteSelection(
     items: List<ProjectItem>,
     model: ProjectSwitcherModel,
@@ -283,7 +268,6 @@ private fun activateSelection(
     }
 }
 
-/** A bare Enter states no preference, which leaves the frame to the "Open project in" setting. */
 private fun KeyEvent.openTarget(): OpenTarget = when {
     isCtrlPressed -> OpenTarget.NewWindow
     isShiftPressed -> OpenTarget.CurrentWindow

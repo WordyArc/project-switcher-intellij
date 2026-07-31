@@ -29,11 +29,6 @@ import kotlin.time.Duration.Companion.seconds
 @Service(Service.Level.APP)
 class RecentProjectsService(val coroutineScope: CoroutineScope) {
 
-    /**
-     * Everything the popup needs to render a usable, searchable list, and nothing that costs I/O —
-     * the platform answers all of this from memory. Icons are the one exception, which is why they
-     * are [loadIcons]' job and not this one.
-     */
     suspend fun collect(currentProject: Project?): ProjectList = withContext(Dispatchers.IO) {
         val recentActions = recentActionsByPath()
 
@@ -68,24 +63,10 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         ProjectList(open = open, recent = recent)
     }
 
-    /**
-     * Streams icons to [emit] keyed by path, rather than returning them together: one icon can cost
-     * hundreds of milliseconds of disk I/O, and holding the list back for the slowest of them is
-     * what made this popup open on "Loading…" instead of on the list.
-     *
-     * The first pass asks for [ICON_SIZE] because it is the only size the platform itself ever
-     * requests, and its cache is keyed by `(path, size)` — a request at any other size cannot hit an
-     * entry the welcome screen or the project widget already warmed. The second pass asks for the
-     * HiDPI size this popup wants, which is always cold.
-     */
+    /** Streams cached-size icons first, then replaces them with HiDPI versions as they load. */
     suspend fun loadIcons(paths: List<String>, emit: suspend (String, Icon) -> Unit) {
-        // Not `getInstanceEx()`, which the inspection would prefer: it hides this very downcast
-        // inside the platform, as a hard cast, where it cannot degrade.
-        //
-        // The downcast is unavoidable — `getProjectIcon` lives on the base class, not on the service
-        // interface — but it stays a *safe* cast because the service is registered `open="true"`, so
-        // an IDE may swap in an implementation that does not extend it. Rows without icons beat a
-        // ClassCastException that takes the whole popup down.
+        // getProjectIcon is only on the base class, but an IDE may replace the open service with an
+        // unrelated implementation. Keep the cast safe instead of using getInstanceEx().
         val recentManager = service<RecentProjectsManager>() as? RecentProjectsManagerBase
         if (recentManager == null) {
             thisLogger().debug("RecentProjectsManager is not a RecentProjectsManagerBase — no project icons")
@@ -93,8 +74,7 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         }
 
         for (size in iconSizePasses(JBUIScale.sysScale())) {
-            // Scoped per pass, not around the loop: a later emit wins, so the coarse icon must never
-            // be in flight once the crisp one has landed.
+            // Finish the coarse pass before a later, crisp icon can be emitted.
             coroutineScope {
                 for (path in paths) {
                     launch {
@@ -106,10 +86,6 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         }
     }
 
-    /**
-     * Drops [path] from the platform's recent-projects history. Only the history entry goes; the
-     * project on disk is untouched, which is why this needs no confirmation of its own.
-     */
     fun forget(path: String) {
         service<RecentProjectsManager>().removePath(path)
     }
@@ -125,15 +101,9 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
     }
 
     /**
-     * The platform hands out project icons as [DeferredIconImpl]: a blank placeholder plus a
-     * background load that only starts the first time Swing paints the icon. This popup rasterizes
-     * icons into Compose bitmaps instead of painting them, which breaks that contract twice over —
-     * the load is never triggered, and `IconLoader.toImage` unwraps the deferred icon off the EDT,
-     * where it falls back to the *synchronous* evaluator that project icons do not have. Either way
-     * a blank square is what gets captured.
-     *
-     * Hence the up-front evaluation, and hence handing on the settled delegate rather than the
-     * wrapper. The timeout keeps a wedged load from stalling the pass that follows it.
+     * Deferred project icons normally start loading when Swing paints them. Compose rasterization
+     * bypasses that trigger, so evaluate first and return the settled delegate. The timeout prevents
+     * one icon from blocking the next size pass.
      */
     @Suppress("UnstableApiUsage")
     private suspend fun Icon.resolved(): Icon {
@@ -144,7 +114,6 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            // The row is already on screen; it keeps its blank slot rather than losing the popup.
             thisLogger().debug("Cannot evaluate deferred project icon", e)
         }
         return currentlyPaintedIcon()
@@ -165,20 +134,13 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
     companion object {
         private const val ICON_SIZE = 20
 
-        /** Past 3x the extra bitmap stops buying visible sharpness and only costs memory. */
         private const val MAX_RASTER_SCALE = 3
 
         private val ICON_TIMEOUT = 2.seconds
 
         /**
-         * The icon sizes to request for a screen at [scale], in the order they must be applied.
-         *
-         * Rows are [ICON_SIZE] wide, but this popup rasterizes icons into a fixed bitmap instead of
-         * painting them, so pixel density has to be baked into the requested size — a 20 px bitmap
-         * stretched into a 20.dp slot is visibly soft on a HiDPI screen. Asking the platform for a
-         * proportionally larger *logical* icon is the only lever, since the size it rasterizes at is
-         * settled before this plugin sees the icon. (It is also why [ReopenProjectAction.projectIcon]
-         * is not used, convenient as it is — it hardcodes 20.)
+         * Starts with the platform's cacheable 20 px size, then requests enough source pixels for
+         * HiDPI rasterization. [ReopenProjectAction.projectIcon] cannot provide the larger size.
          */
         internal fun iconSizePasses(scale: Float): List<Int> {
             val crisp = ICON_SIZE * ceil(scale).toInt().coerceIn(1, MAX_RASTER_SCALE)
