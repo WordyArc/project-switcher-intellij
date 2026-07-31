@@ -30,9 +30,6 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.dp
-import com.intellij.ui.scale.ScaleContext
-import com.intellij.util.IconUtil
-import com.intellij.util.ui.ImageUtil
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import org.jetbrains.jewel.bridge.retrieveColorOrNull
 import org.jetbrains.jewel.foundation.theme.JewelTheme
@@ -131,10 +128,7 @@ private fun ProjectIcon(item: ProjectItem) {
 }
 
 private fun SwingIcon.toPainterOrNull(): Painter? =
-    runCatching {
-        val image = ImageUtil.toBufferedImage(IconUtil.toImage(this, ScaleContext.create()))
-        BitmapPainter(image.toComposeImageBitmap())
-    }.getOrNull()
+    runCatching { BitmapPainter(rasterize().toComposeImageBitmap()) }.getOrNull()
 
 @Composable
 private fun CurrentProjectIndicator(visible: Boolean, modifier: Modifier = Modifier) {

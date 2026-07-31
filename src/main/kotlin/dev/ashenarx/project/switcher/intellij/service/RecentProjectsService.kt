@@ -10,6 +10,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.ui.DeferredIconImpl
+import com.intellij.ui.scale.JBUIScale
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
 import kotlinx.coroutines.CancellationException
@@ -21,6 +22,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.swing.Icon
+import kotlin.math.ceil
 import kotlin.time.Duration.Companion.seconds
 
 
@@ -48,7 +50,7 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
                             displayName = project.name,
                             path = path,
                             branch = action?.branchName,
-                            icon = (action?.iconOrNull() ?: projectIcon(recentManager, path))?.resolved(),
+                            icon = projectIcon(recentManager, path)?.resolved(),
                             isCurrent = project == currentProject,
                         )
                     }
@@ -61,11 +63,13 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
                 .values
                 .map { action ->
                     async {
+                        val path = normalize(action.projectPath)
+
                         ProjectItem.Recent(
                             displayName = action.projectNameToDisplay,
-                            path = normalize(action.projectPath),
+                            path = path,
                             branch = action.branchName,
-                            icon = action.iconOrNull()?.resolved(),
+                            icon = projectIcon(recentManager, path)?.resolved(),
                         )
                     }
                 }
@@ -75,7 +79,7 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         }
     }
 
-    /** Keyed by normalized path, preserving the platform's most-recently-used order. */
+    /** [LinkedHashMap] so the platform's most-recently-used order survives the keying. */
     private fun recentActionsByPath(): Map<String, ReopenProjectAction> {
         return RecentProjectListActionProvider.getInstance()
             .getActions()
@@ -114,22 +118,33 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
     private fun pathOf(project: Project): String =
         normalize(project.basePath ?: project.projectFilePath.orEmpty())
 
-    private fun ReopenProjectAction.iconOrNull(): Icon? =
-        runCatching { projectIcon }
-            .onFailure { thisLogger().debug("Cannot load icon for $projectPath", it) }
-            .getOrNull()
-
     private fun projectIcon(recentManager: RecentProjectsManagerBase, path: String): Icon? {
         if (path.isBlank()) return null
-        return runCatching { recentManager.getProjectIcon(path, true, ICON_SIZE) }
+        return runCatching { recentManager.getProjectIcon(path, true, rasterIconSize()) }
             .onFailure { thisLogger().debug("Cannot load icon for $path", it) }
             .getOrNull()
     }
+
+    /**
+     * Rows are [ICON_SIZE] wide, but the icon is rasterized into a fixed bitmap instead of painted,
+     * so the pixel density has to be baked in here — a 20 px bitmap stretched into a 20.dp slot is
+     * visibly soft on a HiDPI screen. Asking the platform for a proportionally larger *logical* icon
+     * is the only lever: the size it rasterizes at is settled before this plugin sees the icon.
+     *
+     * This is also why [ReopenProjectAction.projectIcon] is not used, convenient as it is — it
+     * hardcodes 20. The cache underneath is keyed by path *and* size, so the larger request gets its
+     * own entry rather than displacing the one the platform's own project widget relies on.
+     */
+    private fun rasterIconSize(): Int = ICON_SIZE * ceil(JBUIScale.sysScale()).toInt().coerceIn(1, MAX_RASTER_SCALE)
 
     private fun normalize(path: String) = FileUtil.toSystemIndependentName(path)
 
     companion object {
         private const val ICON_SIZE = 20
+
+        /** Past 3x the extra bitmap stops buying visible sharpness and only costs memory. */
+        private const val MAX_RASTER_SCALE = 3
+
         private val ICON_TIMEOUT = 2.seconds
 
         fun getInstance(): RecentProjectsService = service()

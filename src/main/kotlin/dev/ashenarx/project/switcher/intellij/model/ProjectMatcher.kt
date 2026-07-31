@@ -11,9 +11,9 @@ import org.jetbrains.jewel.foundation.search.SpeedSearchMatcher.MatchResult
  *
  * Jewel's own `SpeedSearchMatcher.patternMatcher` is a Compose-side port of `MinusculeMatcherImpl`
  * and stops at camel humps. Delegating to the platform buys the wrapper layers that
- * `NameUtil.MatcherBuilder.build` adds for free: `FixingLayoutMatcher` retries the query through the
- * keyboard layout the user is actually typing in, the typo-tolerant variant forgives an
- * adjacent-key slip, and `PinyinMatcher` covers Chinese.
+ * `NameUtil.MatcherBuilder.build` adds for free: `FixingLayoutTypoTolerantMatcher` both retries the
+ * query through the keyboard layout the user is actually typing in and forgives an adjacent-key
+ * slip, and `PinyinMatcher` on top of it covers Chinese.
  */
 internal class ProjectMatcher(query: String) : SpeedSearchMatcher {
 

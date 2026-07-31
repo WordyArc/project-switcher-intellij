@@ -17,8 +17,8 @@ class ProjectMatcherTest {
 
     @Test
     fun `leaves a half-switched query unmatched`() {
-        // FixingLayoutMatcher only retries when every letter of the query is non-ASCII, so a query
-        // half-typed in each layout stays a miss.
+        // The platform's fixLayout only retries when every letter of the query is non-ASCII, so a
+        // query half-typed in each layout stays a miss.
         assertNull(ProjectMatcher("pкщоусе").degreeOrNull("project"))
     }
 
