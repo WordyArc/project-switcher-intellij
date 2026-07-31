@@ -52,7 +52,8 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
         val project = openProjectOf(item) ?: return
 
         WindowManager.getInstance().updateDefaultFrameInfoOnProjectClose(project)
-        WriteIntentReadAction.run { ProjectManager.getInstance().closeAndDispose(project) }
+        val closed = WriteIntentReadAction.compute { ProjectManager.getInstance().closeAndDispose(project) }
+        if (!closed) return
 
         // closeAndDispose cannot distinguish this from an application exit, so do its UI cleanup.
         RecentProjectsManager.getInstance().updateLastProjectPath()
