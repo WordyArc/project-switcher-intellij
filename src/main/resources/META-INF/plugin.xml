@@ -19,7 +19,8 @@
 
     <actions>
         <action id="ProjectSwitcher.SwitchProject"
-                class="dev.ashenarx.project.switcher.intellij.ProjectSwitchAction">
+                class="dev.ashenarx.project.switcher.intellij.ProjectSwitchAction"
+                icon="/icons/switchProject.svg">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
             <keyboard-shortcut keymap="$default" first-keystroke="alt F2"/>
         </action>

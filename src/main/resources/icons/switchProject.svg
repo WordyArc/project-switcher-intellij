@@ -1,0 +1,8 @@
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <mask id="cut16">
+    <rect width="16" height="16" fill="#FFFFFF"/>
+    <rect x="5.4" y="5.4" width="10.6" height="10.6" rx="3.4" fill="#000000"/>
+  </mask>
+  <rect mask="url(#cut16)" x="1.6" y="1.6" width="7.8" height="7.8" rx="2.2" stroke="#6C707E" stroke-width="1.2"/>
+  <rect x="7" y="7" width="8" height="8" rx="2.4" fill="#3574F0"/>
+</svg>
