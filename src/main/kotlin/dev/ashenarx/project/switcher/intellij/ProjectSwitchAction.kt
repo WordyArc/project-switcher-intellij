@@ -54,6 +54,10 @@ class ProjectSwitchAction : DumbAwareAction() {
                         }
                         popup?.cancel()
                     },
+                    onCloseCurrent = { item ->
+                        onClosed = { ProjectOpener.getInstance().close(item) }
+                        popup?.cancel()
+                    },
                 )
             }
         }.apply {

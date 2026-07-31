@@ -106,6 +106,14 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         }
     }
 
+    /**
+     * Drops [path] from the platform's recent-projects history. Only the history entry goes; the
+     * project on disk is untouched, which is why this needs no confirmation of its own.
+     */
+    fun forget(path: String) {
+        service<RecentProjectsManager>().removePath(path)
+    }
+
     /** [LinkedHashMap] so the platform's most-recently-used order survives the keying. */
     private fun recentActionsByPath(): Map<String, ReopenProjectAction> {
         return RecentProjectListActionProvider.getInstance()

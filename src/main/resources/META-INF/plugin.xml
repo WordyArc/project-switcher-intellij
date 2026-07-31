@@ -7,7 +7,9 @@
         Fast keyboard-driven switching between recent projects.<br/>
         <br/>
         Press <kbd>Alt+F2</kbd> to open a searchable popup listing your recent projects with their
-        icons and current Git branch, then filter as you type and hit <kbd>Enter</kbd> to switch.
+        icons and current Git branch, then filter as you type and hit <kbd>Enter</kbd> to switch.<br/>
+        <br/>
+        <kbd>Delete</kbd> drops a recent project from the list, or closes an open one.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>

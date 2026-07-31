@@ -53,3 +53,15 @@ fun moveSelection(items: List<ProjectItem>, selectedId: String?, delta: Int): St
 
 fun defaultSelection(items: List<ProjectItem>): String? =
     (items.firstOrNull { it.isCurrent } ?: items.firstOrNull())?.id
+
+/**
+ * Where the selection should land once [removedId] is gone. Without this the rebuilt list falls back
+ * to [defaultSelection] and the selection jumps to the top, which makes deleting several entries in
+ * a row unusable.
+ */
+fun selectionAfterRemoving(items: List<ProjectItem>, removedId: String?): String? {
+    val index = items.indexOfFirst { it.id == removedId }
+    if (index < 0) return null
+
+    return (items.getOrNull(index + 1) ?: items.getOrNull(index - 1))?.id
+}

@@ -50,6 +50,7 @@ internal fun ProjectSwitcherPopup(
     onClose: () -> Unit,
     onSelectOpen: (ProjectItem.Open) -> Unit,
     onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
+    onCloseCurrent: (ProjectItem.Open) -> Unit,
 ) {
     val searchState = rememberSpeedSearchState { text -> ProjectMatcher(text) }
 
@@ -97,6 +98,7 @@ internal fun ProjectSwitcherPopup(
                         onClose = onClose,
                         onSelectOpen = onSelectOpen,
                         onSelectRecent = onSelectRecent,
+                        onCloseCurrent = onCloseCurrent,
                     )
                 }
         ) {
@@ -203,6 +205,7 @@ private fun handleKeyEvent(
     onClose: () -> Unit,
     onSelectOpen: (ProjectItem.Open) -> Unit,
     onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
+    onCloseCurrent: (ProjectItem.Open) -> Unit,
 ): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
 
@@ -227,6 +230,14 @@ private fun handleKeyEvent(
             true
         }
 
+        // The query gets first refusal: Jewel edits the search text with these keys and declines them
+        // only once it is empty, which is exactly when they can mean the selected project instead.
+        // Backspace is here because it is the key labelled "delete" on a Mac keyboard.
+        Key.Delete, Key.Backspace -> {
+            if (!scope.processKeyEvent(event)) deleteSelection(items, model, onCloseCurrent)
+            true
+        }
+
         // hideSearch() reports whether there was a query to dismiss; only then is the popup kept.
         Key.Escape -> {
             if (!scope.speedSearchState.hideSearch()) onClose()
@@ -235,6 +246,27 @@ private fun handleKeyEvent(
 
         else -> scope.processKeyEvent(event)
     }
+}
+
+/**
+ * Closing the current project is refused while other windows are open: that row is the default
+ * selection, so one stray keystroke would close the window you are working in when you meant to
+ * switch away from it. Alone it is unambiguous, but the close still outlives the popup — it disposes
+ * the frame the popup sits in — so it goes back to the action, the route opening a project takes.
+ */
+private fun deleteSelection(
+    items: List<ProjectItem>,
+    model: ProjectSwitcherModel,
+    onCloseCurrent: (ProjectItem.Open) -> Unit,
+) {
+    val selected = items.firstOrNull { it.id == model.selectedId } ?: return
+
+    if (selected.isCurrent) {
+        if (model.projects.open.size == 1) (selected as? ProjectItem.Open)?.let(onCloseCurrent)
+        return
+    }
+
+    model.delete(selected, items)
 }
 
 private fun activateSelection(

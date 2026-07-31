@@ -132,6 +132,41 @@ class ProjectListTest {
         assertEquals("alpha", open("alpha", "").searchText)
     }
 
+    @Test
+    fun `selection after removing moves down the list`() {
+        val items = listOf(recent("a", "/a"), recent("b", "/b"), recent("c", "/c"))
+
+        assertEquals("recent:/b", selectionAfterRemoving(items, "recent:/a"))
+        assertEquals("recent:/c", selectionAfterRemoving(items, "recent:/b"))
+    }
+
+    @Test
+    fun `selection after removing the last item steps back`() {
+        val items = listOf(recent("a", "/a"), recent("b", "/b"))
+
+        assertEquals("recent:/a", selectionAfterRemoving(items, "recent:/b"))
+    }
+
+    @Test
+    fun `selection after removing the only item is nothing`() {
+        assertNull(selectionAfterRemoving(listOf(recent("a", "/a")), "recent:/a"))
+        assertNull(selectionAfterRemoving(emptyList(), "recent:/a"))
+    }
+
+    /** The successor comes from the flat visible list, so the section header is not in its way. */
+    @Test
+    fun `selection after removing the last open item lands on the first recent one`() {
+        val items = listOf(open("a", "/a"), recent("b", "/b"))
+
+        assertEquals("recent:/b", selectionAfterRemoving(items, "open:hash-a"))
+    }
+
+    @Test
+    fun `selection after removing an unknown id is nothing`() {
+        assertNull(selectionAfterRemoving(listOf(recent("a", "/a")), "recent:/nope"))
+        assertNull(selectionAfterRemoving(listOf(recent("a", "/a")), null))
+    }
+
     private fun open(name: String, path: String, isCurrent: Boolean = false) = ProjectItem.Open(
         locationHash = "hash-$name",
         displayName = name,

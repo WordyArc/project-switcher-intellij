@@ -13,6 +13,8 @@ import com.intellij.openapi.project.Project
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
 import dev.ashenarx.project.switcher.intellij.model.defaultSelection
+import dev.ashenarx.project.switcher.intellij.model.selectionAfterRemoving
+import dev.ashenarx.project.switcher.intellij.service.ProjectOpener
 import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,9 +48,12 @@ internal class ProjectSwitcherModel(private val currentProject: Project?) {
 
     private var job: Job? = null
 
+    private var pendingSelection: String? = null
+
     fun load() {
         val service = RecentProjectsService.getInstance()
 
+        job?.cancel()
         job = service.coroutineScope.launch {
             val loaded = service.collect(currentProject)
 
@@ -63,6 +68,24 @@ internal class ProjectSwitcherModel(private val currentProject: Project?) {
                 }
             }
         }
+    }
+
+    /**
+     * Closes an open project, or forgets a recent one, then rebuilds the list from the platform
+     * rather than editing it here — closing a project does not remove it, it moves it into the
+     * recent section, and only the platform knows the result.
+     *
+     * [visible] must be the *filtered* list, since that is what the surviving selection comes from.
+     */
+    fun delete(item: ProjectItem, visible: List<ProjectItem>) {
+        pendingSelection = selectionAfterRemoving(visible, item.id)
+
+        when (item) {
+            is ProjectItem.Open -> ProjectOpener.getInstance().close(item)
+            is ProjectItem.Recent -> RecentProjectsService.getInstance().forget(item.path)
+        }
+
+        load()
     }
 
     /** The scope belongs to an application service, so nothing else would stop the icon reads. */
@@ -81,6 +104,10 @@ internal class ProjectSwitcherModel(private val currentProject: Project?) {
      * keys keep their selection in between.
      */
     fun resetSelection(visible: List<ProjectItem>, preferred: ProjectItem?) {
-        selectedId = preferred?.id ?: defaultSelection(visible)
+        val pending = pendingSelection?.also { pendingSelection = null }
+
+        selectedId = preferred?.id
+            ?: pending?.takeIf { id -> visible.any { it.id == id } }
+            ?: defaultSelection(visible)
     }
 }
