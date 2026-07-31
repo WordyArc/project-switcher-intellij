@@ -5,6 +5,11 @@ data class ProjectList(
     val recent: List<ProjectItem.Recent>,
 ) {
     val all: List<ProjectItem> = open + recent
+    val duplicateNames: Set<String> = all
+        .groupingBy { it.displayName }
+        .eachCount()
+        .filterValues { it > 1 }
+        .keys
 
     val hasRecent: Boolean get() = recent.isNotEmpty()
     val isEmpty: Boolean get() = all.isEmpty()

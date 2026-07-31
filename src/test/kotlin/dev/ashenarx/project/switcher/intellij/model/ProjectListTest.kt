@@ -130,6 +130,16 @@ class ProjectListTest {
     }
 
     @Test
+    fun `duplicateNames includes names repeated across sections`() {
+        val list = ProjectList(
+            open = listOf(open("same", "/work/first"), open("unique", "/work/unique")),
+            recent = listOf(recent("same", "/work/second")),
+        )
+
+        assertEquals(setOf("same"), list.duplicateNames)
+    }
+
+    @Test
     fun `selection after removing moves down the list`() {
         val items = listOf(recent("a", "/a"), recent("b", "/b"), recent("c", "/c"))
 

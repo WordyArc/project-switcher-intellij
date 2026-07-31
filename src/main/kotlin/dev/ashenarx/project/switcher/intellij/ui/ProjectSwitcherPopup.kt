@@ -115,6 +115,7 @@ internal fun ProjectSwitcherPopup(
                     data = filtered,
                     icons = model.icons,
                     selectedId = model.selectedId,
+                    duplicateNames = model.projects.duplicateNames,
                     onSelectOpen = onSelectOpen,
                     onSelectRecent = onSelectRecent,
                 )
@@ -128,6 +129,7 @@ private fun ProjectRows(
     data: ProjectList,
     icons: Map<String, Icon>,
     selectedId: String?,
+    duplicateNames: Set<String>,
     onSelectOpen: (ProjectItem.Open) -> Unit,
     onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
 ) {
@@ -145,6 +147,7 @@ private fun ProjectRows(
                 item = item,
                 icon = icons[item.path],
                 isSelected = item.id == selectedId,
+                showPath = item.displayName in duplicateNames,
                 onClick = { onSelectOpen(item) },
             )
         }
@@ -159,6 +162,7 @@ private fun ProjectRows(
                     item = item,
                     icon = icons[item.path],
                     isSelected = item.id == selectedId,
+                    showPath = item.displayName in duplicateNames,
                     onClick = { onSelectRecent(item, OpenTarget.Ask) },
                 )
             }

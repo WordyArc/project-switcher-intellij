@@ -29,7 +29,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.intellij.openapi.util.io.FileUtil
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import org.jetbrains.jewel.bridge.retrieveColorOrNull
 import org.jetbrains.jewel.foundation.theme.JewelTheme
@@ -47,6 +49,7 @@ internal fun ProjectRow(
     item: ProjectItem,
     icon: SwingIcon?,
     isSelected: Boolean,
+    showPath: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -93,9 +96,26 @@ internal fun ProjectRow(
             Spacer(Modifier.width(Dimens.IconGap))
 
             Text(item.displayName, maxLines = 1)
-            Spacer(Modifier.weight(1f))
+
+            if (showPath && item.path.isNotEmpty()) {
+                Spacer(Modifier.width(Dimens.MetadataGap))
+                Text(
+                    text = presentableProjectPath(item.path),
+                    color = if (isSelected) {
+                        JewelTheme.globalColors.text.disabledSelected
+                    } else {
+                        JewelTheme.globalColors.text.disabled
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                Spacer(Modifier.weight(1f))
+            }
 
             item.branch?.let { branch ->
+                Spacer(Modifier.width(Dimens.MetadataGap))
                 val textColors = JewelTheme.globalColors.text
                 Text(
                     text = branch,
@@ -106,6 +126,9 @@ internal fun ProjectRow(
         }
     }
 }
+
+internal fun presentableProjectPath(path: String): String =
+    FileUtil.getLocationRelativeToUserHome(FileUtil.toSystemDependentName(path), false)
 
 /**
  * SwingPanel flickers in recycled rows, while Jewel icon keys cannot represent generated project

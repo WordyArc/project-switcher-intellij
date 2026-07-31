@@ -7,6 +7,7 @@ import kotlin.math.roundToInt
 internal object Dimens {
     val IconSize = 20.dp
     val IconGap = 6.dp
+    val MetadataGap = 8.dp
 
     val PopupPaddingHorizontal = 8.dp
     val PopupPaddingVertical = 10.dp
