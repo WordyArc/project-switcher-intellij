@@ -23,6 +23,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.swing.Icon
@@ -34,6 +36,8 @@ import kotlin.time.Duration.Companion.seconds
 
 @Service(Service.Level.APP)
 class RecentProjectsService(val coroutineScope: CoroutineScope) {
+
+    private val iconPermits = Semaphore(MAX_CONCURRENT_ICON_LOADS)
 
     suspend fun collect(currentProject: Project?): ProjectList = withContext(Dispatchers.IO) {
         val recentActions = recentActionsByPath()
@@ -79,13 +83,17 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
             return
         }
 
+        val uniquePaths = distinctIconPaths(paths)
+
         for (size in iconSizePasses(JBUIScale.sysScale())) {
             // Finish the coarse pass before a later, crisp icon can be emitted.
             coroutineScope {
-                for (path in paths) {
+                for (path in uniquePaths) {
                     launch {
-                        val icon = projectIcon(recentManager, path, size)?.resolved() ?: return@launch
-                        emit(path, icon)
+                        iconPermits.withPermit {
+                            val icon = projectIcon(recentManager, path, size)?.resolved() ?: return@withPermit
+                            emit(path, icon)
+                        }
                     }
                 }
             }
@@ -147,6 +155,8 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
 
         private const val MAX_RASTER_SCALE = 3
 
+        private const val MAX_CONCURRENT_ICON_LOADS = 4
+
         private val ICON_TIMEOUT = 2.seconds
 
         private val ICON_POLL_INTERVAL = 10.milliseconds
@@ -159,6 +169,9 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
             val crisp = ICON_SIZE * ceil(scale).toInt().coerceIn(1, MAX_RASTER_SCALE)
             return if (crisp == ICON_SIZE) listOf(ICON_SIZE) else listOf(ICON_SIZE, crisp)
         }
+
+        internal fun distinctIconPaths(paths: List<String>): List<String> =
+            paths.filter { it.isNotBlank() }.distinct()
 
         fun getInstance(): RecentProjectsService = service()
     }

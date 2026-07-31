@@ -11,18 +11,23 @@ import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.ActionUiKind
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ex.ActionUtil
+import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.application.WriteIntentReadAction
+import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.openapi.wm.impl.welcomeScreen.WelcomeFrame
 import dev.ashenarx.project.switcher.intellij.model.OpenTarget
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.awt.Component
 import java.nio.file.Files
 import java.nio.file.Path
@@ -59,21 +64,24 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
      */
     fun reopen(item: ProjectItem.Recent, target: OpenTarget, contextProject: Project?) {
         val file = Path.of(item.path).normalize()
-
-        // The action is still worth replaying for a stale entry: its dialog offers to drop it.
-        if (Files.notExists(file)) {
-            performReopenAction(item, contextProject)
-            return
-        }
-
-        val options = OpenProjectTask.build().copy(
-            projectToClose = contextProject,
-            forceOpenInNewFrame = target == OpenTarget.NewWindow,
-            forceReuseFrame = target == OpenTarget.CurrentWindow,
-            runConfigurators = true,
-        )
+        val modality = ModalityState.current()
 
         coroutineScope.launch {
+            if (withContext(Dispatchers.IO) { Files.notExists(file) }) {
+                // The action is still worth replaying for a stale entry: its dialog offers to drop it.
+                withContext(Dispatchers.EDT + modality.asContextElement()) {
+                    performReopenAction(item, contextProject)
+                }
+                return@launch
+            }
+
+            val options = OpenProjectTask.build().copy(
+                projectToClose = contextProject,
+                forceOpenInNewFrame = target == OpenTarget.NewWindow,
+                forceReuseFrame = target == OpenTarget.CurrentWindow,
+                runConfigurators = true,
+            )
+
             RecentProjectsManagerBase.getInstanceEx().openProject(file, options)
         }
     }

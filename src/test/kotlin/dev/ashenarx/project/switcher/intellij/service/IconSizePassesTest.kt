@@ -1,11 +1,19 @@
 package dev.ashenarx.project.switcher.intellij.service
 
+import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService.Companion.distinctIconPaths
 import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService.Companion.iconSizePasses
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class IconSizePassesTest {
+
+    @Test
+    fun `icon paths are non-blank and unique in encounter order`() {
+        val paths = distinctIconPaths(listOf("/first", "", "/second", "/first", "   ", "/second"))
+
+        assertEquals(listOf("/first", "/second"), paths)
+    }
 
     @Test
     fun `the first pass asks for the size the platform itself caches`() {

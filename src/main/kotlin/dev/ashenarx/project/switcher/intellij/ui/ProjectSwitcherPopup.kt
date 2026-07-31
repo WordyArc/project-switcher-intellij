@@ -106,10 +106,12 @@ internal fun ProjectSwitcherPopup(
 
             Spacer(Modifier.height(Dimens.SectionSpacing))
 
-            when {
-                model.isLoading -> CenteredMessage(ProjectSwitcherBundle.message("popup.loading"))
-                filtered.isEmpty -> CenteredMessage(ProjectSwitcherBundle.message("popup.empty"))
-                else -> ProjectRows(
+            when (model.loadState) {
+                ProjectLoadState.LOADING -> CenteredMessage(ProjectSwitcherBundle.message("popup.loading"))
+                ProjectLoadState.ERROR -> CenteredMessage(ProjectSwitcherBundle.message("popup.error"))
+                ProjectLoadState.READY -> if (filtered.isEmpty) {
+                    CenteredMessage(ProjectSwitcherBundle.message("popup.empty"))
+                } else ProjectRows(
                     data = filtered,
                     icons = model.icons,
                     selectedId = model.selectedId,

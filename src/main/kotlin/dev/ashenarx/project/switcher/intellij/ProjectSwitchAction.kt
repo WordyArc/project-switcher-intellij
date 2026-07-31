@@ -9,14 +9,16 @@ import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
-import com.intellij.openapi.ui.popup.JBPopupListener
-import com.intellij.openapi.ui.popup.LightweightWindowEvent
+import com.intellij.openapi.util.Disposer
+import com.intellij.platform.util.coroutines.childScope
 import dev.ashenarx.project.switcher.intellij.service.ProjectOpener
+import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService
 import dev.ashenarx.project.switcher.intellij.ui.POPUP_HEIGHT
 import dev.ashenarx.project.switcher.intellij.ui.POPUP_WIDTH
 import dev.ashenarx.project.switcher.intellij.ui.ProjectSwitcherModel
 import dev.ashenarx.project.switcher.intellij.ui.ProjectSwitcherPopup
 import dev.ashenarx.project.switcher.intellij.ui.ProjectSwitcherPopupTracker
+import kotlinx.coroutines.cancel
 import org.jetbrains.jewel.bridge.JewelComposePanel
 import org.jetbrains.jewel.bridge.theme.SwingBridgeTheme
 import java.awt.Dimension
@@ -31,7 +33,8 @@ class ProjectSwitchAction : DumbAwareAction() {
         if (tracker.closeIfOpen()) return
 
         val currentProject = e.project
-        val model = ProjectSwitcherModel(currentProject)
+        val popupScope = RecentProjectsService.getInstance().coroutineScope.childScope("Project Switcher popup")
+        val model = ProjectSwitcherModel(currentProject, popupScope)
 
         var popup: JBPopup? = null
 
@@ -64,11 +67,8 @@ class ProjectSwitchAction : DumbAwareAction() {
         }
 
         popup = createPopup(panel).also {
+            Disposer.register(it) { popupScope.cancel("Project Switcher popup disposed") }
             it.setFinalRunnable { onClosed?.invoke() }
-            // Icon loading runs on an application scope and must stop with this popup.
-            it.addListener(object : JBPopupListener {
-                override fun onClosed(event: LightweightWindowEvent) = model.cancel()
-            })
             tracker.register(it)
             it.showCenteredInCurrentWindow(currentProject ?: ProjectManager.getInstance().defaultProject)
         }
