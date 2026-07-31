@@ -4,13 +4,16 @@ import com.intellij.ide.ReopenProjectAction
 import com.intellij.ide.RecentProjectListActionProvider
 import com.intellij.ide.RecentProjectsManager
 import com.intellij.ide.RecentProjectsManagerBase
+import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.io.FileUtil
-import com.intellij.ui.DeferredIconImpl
+import com.intellij.ui.DeferredIcon
 import com.intellij.ui.scale.JBUIScale
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
@@ -18,11 +21,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.swing.Icon
+import javax.swing.JPanel
 import kotlin.math.ceil
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 
@@ -102,21 +108,26 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
 
     /**
      * Deferred project icons normally start loading when Swing paints them. Compose rasterization
-     * bypasses that trigger, so evaluate first and return the settled delegate. The timeout prevents
-     * one icon from blocking the next size pass.
+     * bypasses that trigger, so start the normal Swing lifecycle and wait until the icon settles.
+     * The timeout prevents one icon from blocking the next size pass.
      */
-    @Suppress("UnstableApiUsage")
     private suspend fun Icon.resolved(): Icon {
-        if (this !is DeferredIconImpl<*>) return this
+        val deferred = this as? DeferredIcon ?: return this
 
         try {
-            withTimeoutOrNull(ICON_TIMEOUT) { awaitEvaluation() }
+            // TODO: Replace polling when DeferredIcon exposes a public completion signal.
+            withTimeoutOrNull(ICON_TIMEOUT) {
+                withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
+                    deferred.notifyPaint(JPanel(), 0, 0)
+                    while (!deferred.isDone) delay(ICON_POLL_INTERVAL)
+                }
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             thisLogger().debug("Cannot evaluate deferred project icon", e)
         }
-        return currentlyPaintedIcon()
+        return this
     }
 
     private fun pathOf(project: Project): String =
@@ -137,6 +148,8 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         private const val MAX_RASTER_SCALE = 3
 
         private val ICON_TIMEOUT = 2.seconds
+
+        private val ICON_POLL_INTERVAL = 10.milliseconds
 
         /**
          * Starts with the platform's cacheable 20 px size, then requests enough source pixels for

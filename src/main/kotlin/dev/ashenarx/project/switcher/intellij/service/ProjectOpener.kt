@@ -66,12 +66,12 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
             return
         }
 
-        val options = OpenProjectTask {
-            projectToClose = contextProject
-            forceOpenInNewFrame = target == OpenTarget.NewWindow
-            forceReuseFrame = target == OpenTarget.CurrentWindow
-            runConfigurators = true
-        }
+        val options = OpenProjectTask.build().copy(
+            projectToClose = contextProject,
+            forceOpenInNewFrame = target == OpenTarget.NewWindow,
+            forceReuseFrame = target == OpenTarget.CurrentWindow,
+            runConfigurators = true,
+        )
 
         coroutineScope.launch {
             RecentProjectsManagerBase.getInstanceEx().openProject(file, options)
