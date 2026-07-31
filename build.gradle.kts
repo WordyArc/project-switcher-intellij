@@ -1,3 +1,5 @@
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+
 plugins {
     alias(libs.plugins.kotlin)
     alias(libs.plugins.kotlinCompose)
@@ -27,15 +29,29 @@ repositories {
 dependencies {
     testImplementation(libs.junitJupiter)
     testRuntimeOnly(libs.junitPlatformLauncher)
+    testRuntimeOnly(libs.junit4)
 
     intellijPlatform {
         intellijIdea(providers.gradleProperty("platformVersion"))
         composeUI()
+
+        testFramework(TestFrameworkType.Platform)
+        testFramework(TestFrameworkType.JUnit5)
     }
+}
+
+tasks.compileTestKotlin {
+    // Synthesizing a Compose KeyEvent without a real skiko event needs the internal factory.
+    compilerOptions.optIn.add("androidx.compose.ui.InternalComposeUiApi")
 }
 
 tasks.test {
     useJUnitPlatform()
+
+    // The bundled Station plugin watches recent projects and, in a test IDE, dies looking up a class
+    // it only ships to its own test distribution. Its failure would be attributed to whichever test
+    // happens to be running when it fires.
+    systemProperty("idea.suppressed.plugins.id", "com.jetbrains.station")
 }
 
 tasks.jar {

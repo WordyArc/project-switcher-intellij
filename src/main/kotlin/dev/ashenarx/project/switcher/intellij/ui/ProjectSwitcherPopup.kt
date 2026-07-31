@@ -18,15 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEvent
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isAltPressed
-import androidx.compose.ui.input.key.isCtrlPressed
-import androidx.compose.ui.input.key.isShiftPressed
-import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.ashenarx.project.switcher.intellij.ProjectSwitcherBundle
@@ -34,12 +26,10 @@ import dev.ashenarx.project.switcher.intellij.model.OpenTarget
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
 import dev.ashenarx.project.switcher.intellij.model.ProjectMatcher
-import dev.ashenarx.project.switcher.intellij.model.moveSelection
 import dev.ashenarx.project.switcher.intellij.model.searchText
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.SpeedSearchArea
-import org.jetbrains.jewel.ui.component.SpeedSearchScope
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.rememberSpeedSearchState
 import javax.swing.Icon
@@ -74,7 +64,7 @@ internal fun ProjectSwitcherPopup(
 
     // The search overlay takes focus, so focus-loss dismissal would immediately hide it.
     SpeedSearchArea(state = searchState, dismissOnLoseFocus = false, modifier = Modifier.fillMaxSize()) {
-        val searchScope = this
+        val search = remember(this) { asSpeedSearch() }
 
         Column(
             modifier = Modifier
@@ -88,7 +78,7 @@ internal fun ProjectSwitcherPopup(
                 .onPreviewKeyEvent { event ->
                     handleKeyEvent(
                         event = event,
-                        scope = searchScope,
+                        search = search,
                         items = filtered.all,
                         model = model,
                         onClose = onClose,
@@ -196,89 +186,3 @@ private fun CenteredMessage(text: String) {
     }
 }
 
-private fun handleKeyEvent(
-    event: KeyEvent,
-    scope: SpeedSearchScope,
-    items: List<ProjectItem>,
-    model: ProjectSwitcherModel,
-    onClose: () -> Unit,
-    onSelectOpen: (ProjectItem.Open) -> Unit,
-    onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
-    onCloseCurrent: (ProjectItem.Open) -> Unit,
-): Boolean {
-    if (event.type != KeyEventType.KeyDown) return false
-
-    if (event.key == Key.F2 && event.isAltPressed) {
-        onClose()
-        return true
-    }
-
-    return when (event.key) {
-        Key.DirectionDown -> {
-            model.selectedId = moveSelection(items, model.selectedId, delta = +1)
-            true
-        }
-
-        Key.DirectionUp -> {
-            model.selectedId = moveSelection(items, model.selectedId, delta = -1)
-            true
-        }
-
-        Key.Enter -> {
-            activateSelection(event, items, model.selectedId, onSelectOpen, onSelectRecent)
-            true
-        }
-
-        Key.Delete, Key.Backspace -> {
-            if (scope.speedSearchState.searchText.isEmpty()) {
-                deleteSelection(items, model, onCloseCurrent)
-            } else {
-                scope.processKeyEvent(event)
-            }
-            true
-        }
-
-        Key.Escape -> {
-            if (!scope.speedSearchState.hideSearch()) onClose()
-            true
-        }
-
-        else -> scope.processKeyEvent(event)
-    }
-}
-
-/** Refuses to close the current project when another project is available to switch to. */
-private fun deleteSelection(
-    items: List<ProjectItem>,
-    model: ProjectSwitcherModel,
-    onCloseCurrent: (ProjectItem.Open) -> Unit,
-) {
-    val selected = items.firstOrNull { it.id == model.selectedId } ?: return
-
-    if (selected.isCurrent) {
-        if (model.projects.open.size == 1) (selected as? ProjectItem.Open)?.let(onCloseCurrent)
-        return
-    }
-
-    model.delete(selected, items)
-}
-
-private fun activateSelection(
-    event: KeyEvent,
-    items: List<ProjectItem>,
-    selectedId: String?,
-    onSelectOpen: (ProjectItem.Open) -> Unit,
-    onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
-) {
-    when (val selected = items.firstOrNull { it.id == selectedId }) {
-        is ProjectItem.Open -> onSelectOpen(selected)
-        is ProjectItem.Recent -> onSelectRecent(selected, event.openTarget())
-        null -> Unit
-    }
-}
-
-private fun KeyEvent.openTarget(): OpenTarget = when {
-    isCtrlPressed -> OpenTarget.NewWindow
-    isShiftPressed -> OpenTarget.CurrentWindow
-    else -> OpenTarget.Ask
-}
