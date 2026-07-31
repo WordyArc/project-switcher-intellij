@@ -223,9 +223,12 @@ private fun handleKeyEvent(
             true
         }
 
-        // Let Jewel clear a non-empty query before treating these keys as project deletion.
         Key.Delete, Key.Backspace -> {
-            if (!scope.processKeyEvent(event)) deleteSelection(items, model, onCloseCurrent)
+            if (scope.speedSearchState.searchText.isEmpty()) {
+                deleteSelection(items, model, onCloseCurrent)
+            } else {
+                scope.processKeyEvent(event)
+            }
             true
         }
 
