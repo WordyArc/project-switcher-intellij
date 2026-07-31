@@ -38,6 +38,12 @@ tasks.test {
     useJUnitPlatform()
 }
 
+tasks.jar {
+    from("LICENSE") {
+        into("META-INF")
+    }
+}
+
 intellijPlatform {
     pluginConfiguration {
         ideaVersion {

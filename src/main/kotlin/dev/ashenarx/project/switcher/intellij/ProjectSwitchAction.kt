@@ -81,7 +81,8 @@ class ProjectSwitchAction : DumbAwareAction() {
             .createComponentPopupBuilder(panel, panel)
             .setRequestFocus(true)
             .setFocusable(true)
-            .setCancelKeyEnabled(true)
+            // Compose speed search clears its query on the first Escape and closes on the next one.
+            .setCancelKeyEnabled(false)
             .setCancelOnClickOutside(true)
             .setCancelOnOtherWindowOpen(true)
             .setMovable(false)

@@ -17,6 +17,13 @@
 
     <resource-bundle>messages.ProjectSwitcherBundle</resource-bundle>
 
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="Project Switcher"
+                           displayType="BALLOON"
+                           bundle="messages.ProjectSwitcherBundle"
+                           key="notification.group.name"/>
+    </extensions>
+
     <actions>
         <action id="ProjectSwitcher.SwitchProject"
                 class="dev.ashenarx.project.switcher.intellij.ProjectSwitchAction"
