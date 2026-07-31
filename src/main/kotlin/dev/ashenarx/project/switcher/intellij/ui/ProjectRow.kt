@@ -45,6 +45,7 @@ private val INDICATOR_INSET_START = 2.dp
 @Composable
 internal fun ProjectRow(
     item: ProjectItem,
+    icon: SwingIcon?,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -88,7 +89,7 @@ internal fun ProjectRow(
                 .padding(style.metrics.innerPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ProjectIcon(item)
+            ProjectIcon(icon)
             Spacer(Modifier.width(Dimens.IconGap))
 
             Text(item.displayName, maxLines = 1)
@@ -111,10 +112,13 @@ internal fun ProjectRow(
  * forces every row background to be opaque. Jewel's `IntelliJIconKey.fromPlatformIcon` is not an
  * option either: it only accepts icons backed by a resource path, while project icons are generated
  * (from `.idea/icon.png` or the project's initials).
+ *
+ * A null [icon] is the ordinary state for the first frames, since icons stream in after the list —
+ * hence the spacer, which holds the slot so rows do not shift sideways as they land.
  */
 @Composable
-private fun ProjectIcon(item: ProjectItem) {
-    val painter = remember(item.icon) { item.icon?.toPainterOrNull() }
+private fun ProjectIcon(icon: SwingIcon?) {
+    val painter = remember(icon) { icon?.toPainterOrNull() }
 
     if (painter == null) {
         Spacer(Modifier.size(Dimens.IconSize))

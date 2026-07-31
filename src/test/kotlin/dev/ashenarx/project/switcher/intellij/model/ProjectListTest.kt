@@ -137,7 +137,6 @@ class ProjectListTest {
         displayName = name,
         path = path,
         branch = null,
-        icon = null,
         isCurrent = isCurrent,
     )
 
@@ -145,6 +144,5 @@ class ProjectListTest {
         displayName = name,
         path = path,
         branch = null,
-        icon = null,
     )
 }

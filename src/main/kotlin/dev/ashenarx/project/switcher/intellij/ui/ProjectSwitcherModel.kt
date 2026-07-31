@@ -2,8 +2,10 @@ package dev.ashenarx.project.switcher.intellij.ui
 
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.asContextElement
@@ -13,8 +15,10 @@ import dev.ashenarx.project.switcher.intellij.model.ProjectList
 import dev.ashenarx.project.switcher.intellij.model.defaultSelection
 import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import javax.swing.Icon
 
 /**
  * Plain Compose state rather than an `androidx.lifecycle.ViewModel`: the platform's Compose bundle
@@ -28,22 +32,43 @@ internal class ProjectSwitcherModel(private val currentProject: Project?) {
     var projects: ProjectList by mutableStateOf(ProjectList.EMPTY)
         private set
 
+    /**
+     * Kept beside [projects] rather than inside it. Folding an icon into a [ProjectItem] would make
+     * every arrival a fresh [ProjectList], which re-runs the effects keyed on it — throwing away the
+     * selection the user just moved with the arrow keys, once per icon.
+     */
+    val icons: SnapshotStateMap<String, Icon> = mutableStateMapOf()
+
     var isLoading: Boolean by mutableStateOf(true)
         private set
 
     var selectedId: String? by mutableStateOf(null)
 
+    private var job: Job? = null
+
     fun load() {
         val service = RecentProjectsService.getInstance()
 
-        service.coroutineScope.launch {
+        job = service.coroutineScope.launch {
             val loaded = service.collect(currentProject)
 
             withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
                 projects = loaded
                 isLoading = false
             }
+
+            service.loadIcons(loaded.all.map { it.path }) { path, icon ->
+                withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
+                    icons[path] = icon
+                }
+            }
         }
+    }
+
+    /** The scope belongs to an application service, so nothing else would stop the icon reads. */
+    fun cancel() {
+        job?.cancel()
+        job = null
     }
 
     /**

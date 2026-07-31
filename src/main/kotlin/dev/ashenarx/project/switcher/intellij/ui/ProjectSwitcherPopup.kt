@@ -42,6 +42,7 @@ import org.jetbrains.jewel.ui.component.SpeedSearchArea
 import org.jetbrains.jewel.ui.component.SpeedSearchScope
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.rememberSpeedSearchState
+import javax.swing.Icon
 
 @Composable
 internal fun ProjectSwitcherPopup(
@@ -112,6 +113,7 @@ internal fun ProjectSwitcherPopup(
                 filtered.isEmpty -> CenteredMessage(ProjectSwitcherBundle.message("popup.empty"))
                 else -> ProjectRows(
                     data = filtered,
+                    icons = model.icons,
                     selectedId = model.selectedId,
                     onSelectOpen = onSelectOpen,
                     onSelectRecent = onSelectRecent,
@@ -124,6 +126,7 @@ internal fun ProjectSwitcherPopup(
 @Composable
 private fun ProjectRows(
     data: ProjectList,
+    icons: Map<String, Icon>,
     selectedId: String?,
     onSelectOpen: (ProjectItem.Open) -> Unit,
     onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
@@ -136,9 +139,16 @@ private fun ProjectRows(
         if (row >= 0) listState.animateScrollToItem(row)
     }
 
+    // The icon lookups belong inside the item scopes, not hoisted out of them: that is what keeps an
+    // arriving icon to a one-row recomposition.
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
         items(data.open, key = { it.id }) { item ->
-            ProjectRow(item, isSelected = item.id == selectedId, onClick = { onSelectOpen(item) })
+            ProjectRow(
+                item = item,
+                icon = icons[item.path],
+                isSelected = item.id == selectedId,
+                onClick = { onSelectOpen(item) },
+            )
         }
 
         if (data.hasRecent) {
@@ -147,7 +157,12 @@ private fun ProjectRows(
             }
 
             items(data.recent, key = { it.id }) { item ->
-                ProjectRow(item, isSelected = item.id == selectedId, onClick = { onSelectRecent(item, OpenTarget.Ask) })
+                ProjectRow(
+                    item = item,
+                    icon = icons[item.path],
+                    isSelected = item.id == selectedId,
+                    onClick = { onSelectRecent(item, OpenTarget.Ask) },
+                )
             }
         }
     }

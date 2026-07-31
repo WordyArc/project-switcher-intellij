@@ -72,7 +72,8 @@ class IconRasterTest {
     /**
      * Sharpness on a HiDPI screen rests on this: the raster has no way to add detail, so the only
      * lever is the size the icon was requested at. If a larger request stopped widening the bitmap,
-     * `RecentProjectsService.rasterIconSize` would silently become a no-op that costs memory.
+     * the crisp pass of `RecentProjectsService.iconSizePasses` would silently become a no-op that
+     * costs a second round of disk reads and buys nothing.
      */
     @Test
     fun `a larger requested size reaches the raster`() {

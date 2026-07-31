@@ -9,6 +9,8 @@ import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.openapi.ui.popup.JBPopupListener
+import com.intellij.openapi.ui.popup.LightweightWindowEvent
 import dev.ashenarx.project.switcher.intellij.service.ProjectOpener
 import dev.ashenarx.project.switcher.intellij.ui.POPUP_HEIGHT
 import dev.ashenarx.project.switcher.intellij.ui.POPUP_WIDTH
@@ -60,6 +62,10 @@ class ProjectSwitchAction : DumbAwareAction() {
 
         popup = createPopup(panel).also {
             it.setFinalRunnable { onClosed?.invoke() }
+            // Icons keep streaming in after the list, on a scope that outlives this popup.
+            it.addListener(object : JBPopupListener {
+                override fun onClosed(event: LightweightWindowEvent) = model.cancel()
+            })
             tracker.register(it)
             it.showCenteredInCurrentWindow(currentProject ?: ProjectManager.getInstance().defaultProject)
         }
