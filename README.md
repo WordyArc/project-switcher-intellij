@@ -1,66 +1,39 @@
 # Project Switcher
 
-An IntelliJ IDEA plugin for fast, keyboard-driven switching between recent projects.
+Project Switcher is an IntelliJ IDEA plugin for quickly switching between open and recent projects.
 
-Press <kbd>Alt</kbd>+<kbd>F2</kbd> to open a searchable popup listing your recent projects with their
-icons and current Git branch. Filter as you type, then hit <kbd>Enter</kbd> to switch.
+Press <kbd>Alt</kbd>+<kbd>F2</kbd> and type to filter projects by name or path. Search tolerates common typos and supports keyboard-layout correction. Open projects are focused immediately; recent projects follow the IDE's **Open project in** setting.
+
+## Screenshots
+
+> Screenshot placeholder: project switcher popup
+
+> Screenshot placeholder: shortcut settings
 
 ## Shortcuts
 
-| Key                                        | Action                                          |
-|--------------------------------------------|-------------------------------------------------|
-| <kbd>Alt</kbd>+<kbd>F2</kbd>               | Open the popup — press again to close it        |
-| Any printable character                    | Filter the list                                 |
-| <kbd>↑</kbd> / <kbd>↓</kbd>                | Move the selection                              |
-| <kbd>Enter</kbd>                           | Open the selection, letting the IDE ask where   |
-| <kbd>Shift</kbd>+<kbd>Enter</kbd>          | Open in the **current** window, without asking  |
-| <kbd>Ctrl</kbd>+<kbd>Enter</kbd>           | Open in a **new** window                        |
-| <kbd>Esc</kbd>                             | Clear the filter, or close the popup            |
+| Key | Action |
+|---|---|
+| <kbd>Alt</kbd>+<kbd>F2</kbd> | Open or close Project Switcher |
+| Type | Filter projects by name or path |
+| <kbd>Up</kbd> / <kbd>Down</kbd> | Move the selection |
+| <kbd>Enter</kbd> | Open the selected project using the IDE setting |
+| <kbd>Shift</kbd>+<kbd>Enter</kbd> | Open a recent project in the current window |
+| <kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Open a recent project in a new window |
+| <kbd>Delete</kbd> / <kbd>Backspace</kbd> | Close an open project or remove a recent project when the search field is empty |
+| <kbd>Esc</kbd> | Clear the search, then close the popup |
 
-Plain <kbd>Enter</kbd> follows <kbd>Settings</kbd> → <kbd>Appearance & Behavior</kbd> →
-<kbd>System Settings</kbd> → <kbd>Open project in</kbd>, so it shows the "New Window / This Window"
-question only while that is set to ask. The modifiers override it either way.
+The open-in-current-window and open-in-new-window modifiers apply only to recent projects. Selecting an already open project focuses its window.
 
-Already-open projects are listed first and are always just focused; the modifiers apply to the
-**Recent** section.
+To prevent accidentally leaving no project to switch to, the current project can be closed from the popup only when it is the only open project.
+
+## Change the Shortcut
+
+Open **Settings | Keymap**, search for **Switch Project**, and assign the shortcut you prefer. The action is also available from **Tools | Switch Project**.
 
 ## Requirements
 
-- IntelliJ IDEA **2026.2** or newer (build `262+`)
-- JDK **25** to build
-
-## Building
-
-```bash
-./gradlew build          # compile and verify
-./gradlew runIde         # launch a sandbox IDE with the plugin installed
-./gradlew buildPlugin    # produce build/distributions/project-switcher-<version>.zip
-./gradlew verifyPlugin   # run the JetBrains Plugin Verifier
-```
-
-Plugin version and target platform live in [`gradle.properties`](gradle.properties);
-plugin/dependency versions live in [`gradle/libs.versions.toml`](gradle/libs.versions.toml);
-plugin metadata lives in [`plugin.xml`](src/main/resources/META-INF/plugin.xml).
-
-## Installation
-
-<kbd>Settings</kbd> → <kbd>Plugins</kbd> → <kbd>⚙️</kbd> → <kbd>Install Plugin from Disk…</kbd>, then
-pick the zip produced by `./gradlew buildPlugin`.
-
-## Publishing
-
-The [Release](.github/workflows/release.yml) workflow signs and publishes to JetBrains Marketplace
-when a GitHub release is published. It needs these repository secrets:
-
-| Secret                 | Purpose                                       |
-|------------------------|-----------------------------------------------|
-| `PUBLISH_TOKEN`        | JetBrains Marketplace token                   |
-| `CERTIFICATE_CHAIN`    | Signing certificate chain                     |
-| `PRIVATE_KEY`          | Signing certificate private key               |
-| `PRIVATE_KEY_PASSWORD` | Password for the private key                  |
-
-See [Plugin Signing](https://plugins.jetbrains.com/docs/intellij/plugin-signing.html) for how to
-generate them.
+- IntelliJ IDEA 2026.2 or newer
 
 ## License
 
