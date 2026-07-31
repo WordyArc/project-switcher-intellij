@@ -10,18 +10,18 @@ import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.wm.WindowManager
 import com.intellij.platform.util.coroutines.childScope
 import dev.ashenarx.project.switcher.intellij.service.ProjectOpener
 import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService
-import dev.ashenarx.project.switcher.intellij.ui.POPUP_HEIGHT
-import dev.ashenarx.project.switcher.intellij.ui.POPUP_WIDTH
+import dev.ashenarx.project.switcher.intellij.ui.DEFAULT_POPUP_SIZE
 import dev.ashenarx.project.switcher.intellij.ui.ProjectSwitcherModel
 import dev.ashenarx.project.switcher.intellij.ui.ProjectSwitcherPopup
 import dev.ashenarx.project.switcher.intellij.ui.ProjectSwitcherPopupTracker
+import dev.ashenarx.project.switcher.intellij.ui.popupSizeFor
 import kotlinx.coroutines.cancel
 import org.jetbrains.jewel.bridge.JewelComposePanel
 import org.jetbrains.jewel.bridge.theme.SwingBridgeTheme
-import java.awt.Dimension
 import javax.swing.JComponent
 
 class ProjectSwitchAction : DumbAwareAction() {
@@ -35,6 +35,11 @@ class ProjectSwitchAction : DumbAwareAction() {
         val currentProject = e.project
         val popupScope = RecentProjectsService.getInstance().coroutineScope.childScope("Project Switcher popup")
         val model = ProjectSwitcherModel(currentProject, popupScope)
+        val windowManager = WindowManager.getInstance()
+        val popupSize = (windowManager.mostRecentFocusedWindow ?: windowManager.getFrame(currentProject))
+            ?.size
+            ?.let(::popupSizeFor)
+            ?: DEFAULT_POPUP_SIZE
 
         var popup: JBPopup? = null
 
@@ -63,7 +68,7 @@ class ProjectSwitchAction : DumbAwareAction() {
                 )
             }
         }.apply {
-            preferredSize = Dimension(POPUP_WIDTH, POPUP_HEIGHT)
+            preferredSize = popupSize
         }
 
         popup = createPopup(panel).also {
