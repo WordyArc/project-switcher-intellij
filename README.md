@@ -6,9 +6,9 @@ Press <kbd>Alt</kbd>+<kbd>F2</kbd> and type to filter projects by name or path. 
 
 ## Screenshots
 
-> Screenshot placeholder: project switcher popup
+![The popup listing open projects above the recent ones](docs/images/popup.png)
 
-> Screenshot placeholder: shortcut settings
+![Typing narrows the list to the matching projects](docs/images/speed-search.png)
 
 ## Shortcuts
 

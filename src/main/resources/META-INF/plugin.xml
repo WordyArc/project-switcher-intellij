@@ -11,7 +11,14 @@
         <br/>
         Press <kbd>Alt+F2</kbd> to open Project Switcher. Use <kbd>Enter</kbd> to switch, or
         <kbd>Delete</kbd> and <kbd>Backspace</kbd> to close or remove a project. The shortcut can be changed under
-        <b>Settings | Keymap | Switch Project</b>.
+        <b>Settings | Keymap | Switch Project</b>.<br/>
+        <br/>
+        <!-- Absolute URLs: the Marketplace renders this description outside the repository. -->
+        <img src="https://raw.githubusercontent.com/WordyArc/ProjectSwitcher/main/docs/images/popup.png"
+             alt="The popup listing open projects above the recent ones" width="640"/><br/>
+        <br/>
+        <img src="https://raw.githubusercontent.com/WordyArc/ProjectSwitcher/main/docs/images/speed-search.png"
+             alt="Typing narrows the list to the matching projects" width="640"/>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
