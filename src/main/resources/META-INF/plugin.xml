@@ -3,8 +3,6 @@
     <name>Project Switcher</name>
     <vendor email="ashenarx@gmail.com" url="https://github.com/WordyArc">ashenarx</vendor>
 
-    <!-- The images are referenced by absolute URL: the Marketplace renders this description
-         outside the repository. -->
     <description><![CDATA[
         Switch between open and recent projects from a compact keyboard-driven popup.<br/>
         <br/>
