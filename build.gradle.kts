@@ -64,9 +64,24 @@ intellijPlatform {
     pluginConfiguration {
         ideaVersion {
             sinceBuild = providers.gradleProperty("pluginSinceBuild")
-            // Left open-ended; otherwise the bound is derived from platformVersion.
-            untilBuild = provider { null }
+            untilBuild = providers.gradleProperty("pluginUntilBuild")
         }
+
+        // Inlined rather than extracted into a helper: a build script function reference cannot be
+        // stored in the configuration cache.
+        changeNotes = providers.fileContents(layout.projectDirectory.file("CHANGELOG.md"))
+            .asText
+            .map { changelog ->
+                changelog.lineSequence()
+                    .dropWhile { !it.startsWith("## ") }
+                    .drop(1)
+                    .takeWhile { !it.startsWith("## ") }
+                    .map(String::trim)
+                    .filter { it.startsWith("- ") }
+                    .joinToString(separator = "", prefix = "<ul>", postfix = "</ul>") {
+                        "<li>${it.removePrefix("- ")}</li>"
+                    }
+            }
     }
 
     signing {

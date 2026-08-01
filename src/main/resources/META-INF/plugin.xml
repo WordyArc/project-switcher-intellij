@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>dev.ashenarx.project-switcher</id>
     <name>Project Switcher</name>
-    <vendor url="https://github.com/WordyArc">ashenarx</vendor>
+    <vendor email="ashenarx@gmail.com" url="https://github.com/WordyArc">ashenarx</vendor>
 
     <description><![CDATA[
         Switch between open and recent projects from a compact keyboard-driven popup.<br/>

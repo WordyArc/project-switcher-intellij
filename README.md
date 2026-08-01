@@ -1,6 +1,6 @@
 # Project Switcher
 
-Project Switcher is an IntelliJ IDEA plugin for quickly switching between open and recent projects.
+Project Switcher is an IntelliJ Platform plugin for quickly switching between open and recent projects.
 
 Press <kbd>Alt</kbd>+<kbd>F2</kbd> and type to filter projects by name or path. Search tolerates common typos and supports keyboard-layout correction. Open projects are focused immediately; recent projects follow the IDE's **Open project in** setting.
 
@@ -33,7 +33,7 @@ Open **Settings | Keymap**, search for **Switch Project**, and assign the shortc
 
 ## Requirements
 
-- IntelliJ IDEA 2026.2 or newer
+- Any IntelliJ Platform IDE from the 2026.2 branch — IntelliJ IDEA, PyCharm, WebStorm, GoLand, Rider and the rest. The plugin depends only on platform-level modules.
 
 ## License
 

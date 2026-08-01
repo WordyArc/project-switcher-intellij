@@ -14,7 +14,7 @@ data class ProjectList(
     val hasRecent: Boolean get() = recent.isNotEmpty()
     val isEmpty: Boolean get() = all.isEmpty()
 
-    /** Ranks each section independently, preserving input order for equal scores. */
+    /** Equal scores keep their input order, so the platform's recent ordering survives ranking. */
     fun rankedBy(score: (String) -> Int?): ProjectList {
         return ProjectList(
             open = open.ranked(score),
