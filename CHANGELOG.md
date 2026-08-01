@@ -2,6 +2,11 @@
 
 The topmost section is published as the plugin's change notes.
 
+## 1.0.1
+
+- The plugin description now lists every shortcut, including <kbd>Shift</kbd>+<kbd>Enter</kbd>, <kbd>Ctrl</kbd>+<kbd>Enter</kbd> and <kbd>Esc</kbd>.
+- Fixed the screenshot links in the description, which still pointed at the repository's former name.
+
 ## 1.0.0
 
 - Initial release.

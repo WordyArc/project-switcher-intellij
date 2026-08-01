@@ -3,21 +3,36 @@
     <name>Project Switcher</name>
     <vendor email="ashenarx@gmail.com" url="https://github.com/WordyArc">ashenarx</vendor>
 
+    <!-- The images are referenced by absolute URL: the Marketplace renders this description
+         outside the repository. -->
     <description><![CDATA[
         Switch between open and recent projects from a compact keyboard-driven popup.<br/>
         <br/>
-        Type to filter projects by name or path. Search tolerates common typos and supports
-        keyboard-layout correction.<br/>
+        Press <kbd>Alt+F2</kbd> to open Project Switcher, and again to close it. Type to filter
+        projects by name or path. Search tolerates common typos and supports keyboard-layout
+        correction.<br/>
         <br/>
-        Press <kbd>Alt+F2</kbd> to open Project Switcher. Use <kbd>Enter</kbd> to switch, or
-        <kbd>Delete</kbd> and <kbd>Backspace</kbd> to close or remove a project. The shortcut can be changed under
-        <b>Settings | Keymap | Switch Project</b>.<br/>
+        <b>Shortcuts</b>
+        <ul>
+            <li><kbd>Up</kbd> / <kbd>Down</kbd> — move the selection</li>
+            <li><kbd>Enter</kbd> — open the selected project following the IDE's
+                <b>Open project in</b> setting</li>
+            <li><kbd>Shift+Enter</kbd> — open a recent project in the current window</li>
+            <li><kbd>Ctrl+Enter</kbd> — open a recent project in a new window</li>
+            <li><kbd>Delete</kbd> / <kbd>Backspace</kbd> — close an open project or remove a
+                recent one while the search field is empty</li>
+            <li><kbd>Esc</kbd> — clear the search, then close the popup</li>
+        </ul>
+        The window modifiers apply only to recent projects; selecting an already open project
+        focuses its window.<br/>
         <br/>
-        <!-- Absolute URLs: the Marketplace renders this description outside the repository. -->
-        <img src="https://raw.githubusercontent.com/WordyArc/ProjectSwitcher/main/docs/images/popup.png"
+        The shortcut can be changed under <b>Settings | Keymap | Switch Project</b>, and the action
+        is also available from <b>Tools | Switch Project</b>.<br/>
+        <br/>
+        <img src="https://raw.githubusercontent.com/WordyArc/project-switcher-intellij/main/docs/images/popup.png"
              alt="The popup listing open projects above the recent ones" width="640"/><br/>
         <br/>
-        <img src="https://raw.githubusercontent.com/WordyArc/ProjectSwitcher/main/docs/images/speed-search.png"
+        <img src="https://raw.githubusercontent.com/WordyArc/project-switcher-intellij/main/docs/images/speed-search.png"
              alt="Typing narrows the list to the matching projects" width="640"/>
     ]]></description>
 
