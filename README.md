@@ -1,4 +1,14 @@
-# Project Switcher
+<p align="center">
+  <img src="docs/images/logo.svg" width="112" height="112" alt="Project Switcher logo">
+</p>
+
+<h1 align="center">Project Switcher</h1>
+
+<p align="center">
+  Switch between open and recent IntelliJ Platform projects without leaving the keyboard.
+</p>
+
+---
 
 Project Switcher is an IntelliJ Platform plugin for quickly switching between open and recent projects.
 
