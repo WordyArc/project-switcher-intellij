@@ -29,7 +29,7 @@ jobs:
           distribution: zulu
           java-version: ${{ env.JAVA_VERSION }}
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: Export properties
         id: properties
@@ -71,7 +71,7 @@ jobs:
           distribution: zulu
           java-version: ${{ env.JAVA_VERSION }}
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: Cache Plugin Verifier IDEs
         uses: actions/cache@v6

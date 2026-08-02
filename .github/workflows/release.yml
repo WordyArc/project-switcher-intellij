@@ -24,7 +24,7 @@ jobs:
           distribution: zulu
           java-version: 25
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: Publish plugin
         env:
