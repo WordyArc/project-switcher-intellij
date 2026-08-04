@@ -14,6 +14,7 @@ import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -155,6 +156,12 @@ class RecentProjectsServiceTest {
         val list = service.collect(currentProject = null)
 
         assertTrue(list.open.any { it.displayName == "apple" }, "the project is still open, so it stays listed")
+    }
+
+    @Test
+    fun `warm up does its work once per IDE run`() = timeoutRunBlocking {
+        assertTrue(service.warmUp(), "the first call has to do the warming")
+        assertFalse(service.warmUp(), "a second call must not repeat the icon passes")
     }
 
     /** Seeds one recent entry. Oldest first: the platform hands recents back in reverse. */

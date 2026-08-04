@@ -9,6 +9,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.asContextElement
+import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
@@ -25,6 +26,7 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.swing.Icon
+import kotlin.time.TimeSource
 
 /** Compose state scoped explicitly because a JBPopup has no ViewModelStoreOwner. */
 @Stable
@@ -54,6 +56,8 @@ internal class ProjectSwitcherModel(
         icons.clear()
 
         coroutineScope.launch {
+            val started = TimeSource.Monotonic.markNow()
+
             val loaded = try {
                 RecentProjectsService.getInstance().collect(currentProject)
             } catch (e: CancellationException) {
@@ -67,6 +71,12 @@ internal class ProjectSwitcherModel(
             onEdt {
                 projects = loaded
                 loadState = ProjectLoadState.READY
+            }
+
+            thisLogger().debug {
+                "Project list shown after ${started.elapsedNow().inWholeMilliseconds} ms: " +
+                    "${loaded.open.size} open, ${loaded.recent.size} recent, " +
+                    "${loaded.all.count { it.branch != null }} with a branch"
             }
 
             loadIcons(loaded.all.map { it.path })

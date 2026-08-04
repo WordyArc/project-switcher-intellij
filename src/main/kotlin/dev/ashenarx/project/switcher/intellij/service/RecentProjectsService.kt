@@ -11,6 +11,7 @@ import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
@@ -29,17 +30,21 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.swing.Icon
 import javax.swing.JPanel
 import kotlin.math.ceil
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.measureTime
 
 
 @Service(Service.Level.APP)
 class RecentProjectsService(val coroutineScope: CoroutineScope) {
 
     private val iconPermits = Semaphore(MAX_CONCURRENT_ICON_LOADS)
+
+    private val warmedUp = AtomicBoolean()
 
     suspend fun collect(currentProject: Project?): ProjectList = withContext(Dispatchers.IO) {
         val recentActions = recentActionsByPath()
@@ -88,18 +93,36 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         val uniquePaths = distinctIconPaths(paths)
 
         for (size in iconSizePasses(JBUIScale.sysScale())) {
+            val probe = IconPassProbe(size, uniquePaths.size, MAX_CONCURRENT_ICON_LOADS)
+
             // Finish the coarse pass before a later, crisp icon can be emitted.
-            coroutineScope {
-                for (path in uniquePaths) {
-                    launch {
-                        iconPermits.withPermit {
-                            val icon = projectIcon(recentManager, path, size)?.resolved() ?: return@withPermit
-                            emit(path, icon)
+            probe.pass {
+                coroutineScope {
+                    for (path in uniquePaths) {
+                        launch {
+                            iconPermits.withPermit {
+                                val icon = probe.fetch { projectIcon(recentManager, path, size) }
+                                    ?: return@withPermit
+
+                                emit(path, probe.settle { icon.resolved() })
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+
+    suspend fun warmUp(): Boolean {
+        if (!warmedUp.compareAndSet(false, true)) return false
+
+        val elapsed = measureTime {
+            val projects = collect(currentProject = null)
+            loadIcons(projects.all.map { it.path }) { _, _ -> }
+        }
+        thisLogger().debug { "Warmed the project list and icons in ${elapsed.inWholeMilliseconds} ms" }
+        return true
     }
 
     fun forget(path: String) {
