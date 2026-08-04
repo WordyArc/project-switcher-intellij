@@ -4,6 +4,8 @@ import com.intellij.ide.ReopenProjectAction
 import com.intellij.ide.RecentProjectListActionProvider
 import com.intellij.ide.RecentProjectsManager
 import com.intellij.ide.RecentProjectsManagerBase
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.asContextElement
@@ -102,6 +104,21 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
 
     fun forget(path: String) {
         service<RecentProjectsManager>().removePath(path)
+    }
+
+    /**
+     * A recent project's branch comes from a background caffeine cache that expires after a minute of no
+     * reads, and [ReopenProjectAction.branchName] reports null rather than waiting for a cold entry
+     * to load. The platform republishes this topic once the load lands, which is the only signal
+     * that the branches are worth reading again.
+     */
+    fun onRecentProjectsChanged(parent: Disposable, onChange: () -> Unit) {
+        ApplicationManager.getApplication().messageBus.connect(parent).subscribe(
+            RecentProjectsManager.RECENT_PROJECTS_CHANGE_TOPIC,
+            object : RecentProjectsManager.RecentProjectsChange {
+                override fun change() = onChange()
+            },
+        )
     }
 
     /** [LinkedHashMap] so the platform's most-recently-used order survives the keying. */

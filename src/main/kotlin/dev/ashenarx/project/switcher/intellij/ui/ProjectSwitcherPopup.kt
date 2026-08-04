@@ -56,8 +56,10 @@ internal fun ProjectSwitcherPopup(
     val filtered = if (hasQuery) model.projects.rankedBy(matcher::degreeOrNull) else model.projects
     val preferred = if (hasQuery) filtered.topMatch(matcher::degreeOrNull) else null
 
-    // Reset only when ranking changes, not on every query keystroke.
-    LaunchedEffect(filtered, preferred) { model.resetSelection(filtered.all, preferred) }
+    // Keyed on the row identities rather than the rows themselves: reset when ranking changes, not
+    // on every query keystroke, and not when a background refresh only fills in branch names.
+    val rowIds = filtered.all.map { it.id }
+    LaunchedEffect(rowIds, preferred) { model.resetSelection(filtered.all, preferred) }
 
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -125,9 +127,10 @@ private fun ProjectRows(
 ) {
     val listState = rememberLazyListState()
 
-    LaunchedEffect(selectedId, data) {
-        val row = data.rowIndexOf(selectedId)
-        if (row >= 0) listState.animateScrollToItem(row)
+    // Keyed on the row index so a refresh that leaves the selection in place does not re-scroll.
+    val selectedRow = data.rowIndexOf(selectedId)
+    LaunchedEffect(selectedRow) {
+        if (selectedRow >= 0) listState.animateScrollToItem(selectedRow)
     }
 
     // Reading each icon inside its item scope limits arrivals to one-row recompositions.

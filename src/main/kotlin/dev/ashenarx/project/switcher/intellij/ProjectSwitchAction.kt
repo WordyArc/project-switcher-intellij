@@ -75,6 +75,7 @@ class ProjectSwitchAction : DumbAwareAction() {
             Disposer.register(it) { popupScope.cancel("Project Switcher popup disposed") }
             it.setFinalRunnable { onClosed?.invoke() }
             tracker.register(it)
+            RecentProjectsService.getInstance().onRecentProjectsChanged(it) { model.refresh() }
             it.showCenteredInCurrentWindow(currentProject ?: ProjectManager.getInstance().defaultProject)
         }
 

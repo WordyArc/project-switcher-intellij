@@ -5,6 +5,7 @@ import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
+import dev.ashenarx.project.switcher.intellij.model.ProjectList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,8 +15,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.awt.Component
+import java.awt.Graphics
+import javax.swing.Icon
 import kotlin.time.Duration.Companion.seconds
 
 
@@ -123,15 +128,53 @@ class ProjectSwitcherModelTest {
 
         model.load()
 
-        val reached = withTimeoutOrNull(60.seconds) {
-            while (model.loadState == ProjectLoadState.LOADING) delay(20)
-            model.loadState
-        }
-
-        assertEquals(ProjectLoadState.READY, reached)
+        assertEquals(ProjectLoadState.READY, awaitLoaded())
         assertTrue(
             model.projects.open.any { it.displayName == "ModelTest" },
             "expected the open project in the list, got ${model.projects.open.map(ProjectItem::displayName)}",
         )
     }
+
+    @Test
+    fun `refresh waits for the first load instead of racing it`() = timeoutRunBlocking {
+        assertEquals(ProjectLoadState.LOADING, model.loadState)
+
+        model.refresh()
+        delay(200)
+
+        assertEquals(ProjectList.EMPTY, model.projects, "a refresh must not publish over an unfinished load")
+        assertEquals(ProjectLoadState.LOADING, model.loadState)
+    }
+
+    @Test
+    fun `refresh republishes the list without a loading placeholder or an icon reset`() = timeoutRunBlocking {
+        model.load()
+        assertEquals(ProjectLoadState.READY, awaitLoaded())
+
+        // A path no project owns, so only a wholesale reset of the map can remove it.
+        val probe = "/not/a/project"
+        model.icons[probe] = StubIcon
+
+        model.refresh()
+
+        // Poll rather than await, so a refresh that breaks either invariant midway is still caught.
+        repeat(50) {
+            assertEquals(ProjectLoadState.READY, model.loadState, "a refresh must not show the loading placeholder")
+            assertSame(StubIcon, model.icons[probe], "a refresh must keep the icons it already has")
+            delay(20)
+        }
+
+        assertTrue(model.projects.open.any { it.displayName == "ModelTest" })
+    }
+
+    private suspend fun awaitLoaded(): ProjectLoadState? = withTimeoutOrNull(60.seconds) {
+        while (model.loadState == ProjectLoadState.LOADING) delay(20)
+        model.loadState
+    }
+}
+
+private object StubIcon : Icon {
+    override fun paintIcon(c: Component?, g: Graphics?, x: Int, y: Int) = Unit
+    override fun getIconWidth(): Int = 16
+    override fun getIconHeight(): Int = 16
 }

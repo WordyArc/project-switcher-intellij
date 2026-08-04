@@ -20,6 +20,7 @@ import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,44 +46,78 @@ internal class ProjectSwitcherModel(
 
     private var pendingSelection: String? = null
 
-    fun load() {
-        val service = RecentProjectsService.getInstance()
+    private var refreshJob: Job? = null
 
+    fun load() {
         coroutineScope.coroutineContext.cancelChildren()
         loadState = ProjectLoadState.LOADING
         icons.clear()
 
         coroutineScope.launch {
             val loaded = try {
-                service.collect(currentProject)
+                RecentProjectsService.getInstance().collect(currentProject)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 thisLogger().warn("Cannot load projects", e)
-                withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
-                    loadState = ProjectLoadState.ERROR
-                }
+                onEdt { loadState = ProjectLoadState.ERROR }
                 return@launch
             }
 
-            withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
+            onEdt {
                 projects = loaded
                 loadState = ProjectLoadState.READY
             }
 
-            try {
-                service.loadIcons(loaded.all.map { it.path }) { path, icon ->
-                    withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
-                        icons[path] = icon
-                    }
-                }
+            loadIcons(loaded.all.map { it.path })
+        }
+    }
+
+    /**
+     * Picks up platform-side changes without the loading placeholder and icon reset of a full
+     * [load]. Branch names arrive this way: the platform reports none until its own background
+     * lookup finishes, then announces the result.
+     */
+    fun refresh() {
+        if (loadState != ProjectLoadState.READY) return
+
+        refreshJob?.cancel()
+        refreshJob = coroutineScope.launch {
+            val loaded = try {
+                RecentProjectsService.getInstance().collect(currentProject)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                thisLogger().debug("Cannot load project icons", e)
+                thisLogger().debug("Cannot refresh projects", e)
+                return@launch
             }
+
+            val withoutIcon = onEdt {
+                projects = loaded
+                loaded.all.map { it.path }.filter { it !in icons }
+            }
+
+            loadIcons(withoutIcon)
         }
     }
+
+    private suspend fun loadIcons(paths: List<String>) {
+        if (paths.isEmpty()) return
+
+        try {
+            RecentProjectsService.getInstance().loadIcons(paths) { path, icon ->
+                onEdt { icons[path] = icon }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            thisLogger().debug("Cannot load project icons", e)
+        }
+    }
+
+    /** Compose state is written on the EDT, and `any()` because a popup blocks the default modality. */
+    private suspend fun <T> onEdt(block: () -> T): T =
+        withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) { block() }
 
     /** Reloads platform state because a closed project moves into the recent section. */
     fun delete(item: ProjectItem, visible: List<ProjectItem>) {
