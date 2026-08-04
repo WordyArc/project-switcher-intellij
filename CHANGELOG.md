@@ -5,6 +5,7 @@ The topmost section is published as the plugin's change notes.
 ## 1.1.0
 
 - <kbd>Up</kbd> and <kbd>Down</kbd> now wrap around the list: moving up from the first row selects the last one, and moving down from the last row returns to the first.
+- Rows that no longer fit are shortened with an ellipsis instead of being cut off: paths lose their middle, branches lose their prefix, and a long name can no longer crowd out the path and branch beside it.
 
 ## 1.0.1
 

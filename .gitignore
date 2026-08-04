@@ -20,4 +20,5 @@ build
 # macOS
 .DS_Store
 
+.local
 signing/

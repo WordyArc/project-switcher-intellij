@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -92,37 +93,61 @@ internal fun ProjectRow(
                 .padding(style.metrics.innerPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val secondary = with(JewelTheme.globalColors.text) {
+                if (isSelected) disabledSelected else disabled
+            }
+
             ProjectIcon(icon)
             Spacer(Modifier.width(Dimens.IconGap))
 
-            Text(item.displayName, maxLines = 1)
-
-            if (showPath && item.path.isNotEmpty()) {
-                Spacer(Modifier.width(Dimens.MetadataGap))
-                Text(
-                    text = presentableProjectPath(item.path),
-                    color = if (isSelected) {
-                        JewelTheme.globalColors.text.disabledSelected
-                    } else {
-                        JewelTheme.globalColors.text.disabled
-                    },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-            } else {
-                Spacer(Modifier.weight(1f))
-            }
+            NameAndPath(
+                item = item,
+                showPath = showPath,
+                secondary = secondary,
+                modifier = Modifier.weight(1f),
+            )
 
             item.branch?.let { branch ->
                 Spacer(Modifier.width(Dimens.MetadataGap))
-                val textColors = JewelTheme.globalColors.text
                 Text(
                     text = branch,
-                    color = if (isSelected) textColors.disabledSelected else textColors.disabled,
+                    color = secondary,
                     maxLines = 1,
+                    // A branch is identified by its tail, so drop the `feature/` style prefix first.
+                    overflow = TextOverflow.StartEllipsis,
+                    modifier = Modifier.widthIn(max = Dimens.MaxBranchWidth),
                 )
             }
+        }
+    }
+}
+
+
+@Composable
+private fun NameAndPath(
+    item: ProjectItem,
+    showPath: Boolean,
+    secondary: Color,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = item.displayName,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+
+        if (showPath && item.path.isNotEmpty()) {
+            Spacer(Modifier.width(Dimens.MetadataGap))
+            Text(
+                text = presentableProjectPath(item.path),
+                color = secondary,
+                maxLines = 1,
+                // Both ends of a path carry meaning, so shorten it from the middle.
+                overflow = TextOverflow.MiddleEllipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
         }
     }
 }

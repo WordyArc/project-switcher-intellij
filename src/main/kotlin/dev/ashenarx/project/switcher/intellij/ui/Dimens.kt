@@ -9,6 +9,9 @@ internal object Dimens {
     val IconGap = 6.dp
     val MetadataGap = 8.dp
 
+    /** Keeps a long branch from crowding out the project name it belongs to. */
+    val MaxBranchWidth = 160.dp
+
     val PopupPaddingHorizontal = 8.dp
     val PopupPaddingVertical = 10.dp
 
