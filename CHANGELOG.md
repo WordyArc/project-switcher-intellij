@@ -7,6 +7,7 @@ The topmost section is published as the plugin's change notes.
 - <kbd>Up</kbd> and <kbd>Down</kbd> now wrap around the list: moving up from the first row selects the last one, and moving down from the last row returns to the first.
 - Rows that no longer fit are shortened with an ellipsis instead of being cut off: paths lose their middle, branches lose their prefix, and a long name can no longer crowd out the path and branch beside it.
 - The first popup of an IDE session now opens with its project icons already in place, instead of having them fade in over the list. The lookup they need is done in the background shortly after a project window opens.
+- Closing an open project or removing a recent one moved from <kbd>Delete</kbd> to <kbd>Cmd</kbd>+<kbd>W</kbd> on macOS and <kbd>Ctrl</kbd>+<kbd>W</kbd> elsewhere, and now works while a search query is being typed. <kbd>Delete</kbd> and <kbd>Backspace</kbd> only edit the query.
 - Branch names no longer go missing when the popup has not been opened for a while. They now appear as soon as the IDE finishes looking them up, instead of only after a few reopens.
 
 ## 1.0.1

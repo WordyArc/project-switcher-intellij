@@ -17,8 +17,8 @@
                 <b>Open project in</b> setting</li>
             <li><kbd>Shift+Enter</kbd> — open a recent project in the current window</li>
             <li><kbd>Ctrl+Enter</kbd> — open a recent project in a new window</li>
-            <li><kbd>Delete</kbd> / <kbd>Backspace</kbd> — close an open project or remove a
-                recent one while the search field is empty</li>
+            <li><kbd>Cmd+W</kbd> on macOS, <kbd>Ctrl+W</kbd> elsewhere — close an open project
+                or remove a recent one</li>
             <li><kbd>Esc</kbd> — clear the search, then close the popup</li>
         </ul>
         The window modifiers apply only to recent projects; selecting an already open project

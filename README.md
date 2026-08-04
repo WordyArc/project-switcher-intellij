@@ -32,7 +32,7 @@ project in** setting.
 | <kbd>Enter</kbd>                         | Open the selected project using the IDE setting                                 |
 | <kbd>Shift</kbd>+<kbd>Enter</kbd>        | Open a recent project in the current window                                     |
 | <kbd>Ctrl</kbd>+<kbd>Enter</kbd>         | Open a recent project in a new window                                           |
-| <kbd>Delete</kbd> / <kbd>Backspace</kbd> | Close an open project or remove a recent project when the search field is empty |
+| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd> | Close an open project or remove a recent project                             |
 | <kbd>Esc</kbd>                           | Clear the search, then close the popup                                          |
 
 The open-in-current-window and open-in-new-window modifiers apply only to recent projects. Selecting an already open

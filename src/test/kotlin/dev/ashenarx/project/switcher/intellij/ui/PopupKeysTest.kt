@@ -3,6 +3,7 @@ package dev.ashenarx.project.switcher.intellij.ui
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import com.intellij.openapi.util.SystemInfoRt
 import dev.ashenarx.project.switcher.intellij.model.OpenTarget
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import kotlinx.coroutines.CoroutineScope
@@ -18,6 +19,7 @@ class PopupKeysTest {
     private val alpha = open("alpha")
     private val beta = recent("beta")
     private val gamma = recent("gamma")
+    private val current = open("current", isCurrent = true)
     private val items = listOf(alpha, beta, gamma)
 
     private val model = ProjectSwitcherModel(currentProject = null, coroutineScope = CoroutineScope(EmptyCoroutineContext))
@@ -143,13 +145,11 @@ class PopupKeysTest {
 
     @Test
     fun `escape first clears the search and only then closes the popup`() {
-        search.searchText = "alp"
         search.hideSearchResult = true
 
         assertTrue(press(Key.Escape))
         assertEquals(0, closed, "the first escape belongs to the search overlay")
 
-        search.searchText = ""
         search.hideSearchResult = false
 
         assertTrue(press(Key.Escape))
@@ -163,26 +163,50 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `delete edits the query while one is being typed`() {
-        search.searchText = "alp"
+    fun `delete and backspace only ever edit the query`() {
+        // A selected row and no query at all: the case that used to remove a project instead.
         model.selectedId = beta.id
 
         assertTrue(press(Key.Backspace))
         assertTrue(press(Key.Delete))
 
-        assertEquals(2, search.forwarded.size, "backspace must shorten the query, not remove a project")
+        assertEquals(2, search.forwarded.size, "both keys belong to the search field now")
     }
 
     @Test
-    fun `delete never reaches speed search once the query is empty`() {
-        model.selectedId = null
+    fun `the close shortcut follows the platform`() {
+        assertTrue(event(Key.W, meta = true).isCloseShortcut(mac = true))
+        assertFalse(event(Key.W, ctrl = true).isCloseShortcut(mac = true))
 
-        assertTrue(press(Key.Backspace))
-        assertTrue(press(Key.Delete))
+        assertTrue(event(Key.W, ctrl = true).isCloseShortcut(mac = false))
+        assertFalse(event(Key.W, meta = true).isCloseShortcut(mac = false))
+
+        assertFalse(event(Key.W).isCloseShortcut(mac = true), "a bare W belongs to the query")
+        assertFalse(event(Key.W).isCloseShortcut(mac = false), "a bare W belongs to the query")
+    }
+
+    @Test
+    fun `the close shortcut is claimed by the popup rather than typed into the query`() {
+        // Selecting the current project keeps the platform services out of a plain unit test;
+        // ProjectSwitcherModelTest covers what closing a row actually does.
+        model.selectedId = current.id
+
+        assertTrue(handle(closeShortcut(), visible = items + current))
 
         assertEquals(emptyList<KeyEvent>(), search.forwarded)
-        assertEquals(emptyList<ProjectItem.Open>(), closedCurrent)
     }
+
+    @Test
+    fun `a bare W is left to speed search`() {
+        model.selectedId = current.id
+
+        assertTrue(press(Key.W))
+
+        assertEquals(1, search.forwarded.size)
+    }
+
+    private fun closeShortcut(): KeyEvent =
+        event(Key.W, ctrl = !SystemInfoRt.isMac, meta = SystemInfoRt.isMac)
 
     @Test
     fun `an unhandled key reports whatever speed search reports`() {
@@ -205,12 +229,14 @@ class PopupKeysTest {
         ctrl: Boolean = false,
         shift: Boolean = false,
         alt: Boolean = false,
+        meta: Boolean = false,
     ): KeyEvent = KeyEvent(
         key = key,
         type = type,
         isCtrlPressed = ctrl,
         isShiftPressed = shift,
         isAltPressed = alt,
+        isMetaPressed = meta,
     )
 
     private fun handle(event: KeyEvent, visible: List<ProjectItem>): Boolean = handleKeyEvent(
@@ -225,7 +251,6 @@ class PopupKeysTest {
     )
 
     private class FakeSpeedSearch : SpeedSearch {
-        override var searchText: String = ""
         var hideSearchResult: Boolean = false
         var processResult: Boolean = true
         val forwarded = mutableListOf<KeyEvent>()
