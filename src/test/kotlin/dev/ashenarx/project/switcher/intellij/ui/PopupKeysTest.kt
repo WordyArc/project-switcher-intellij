@@ -4,25 +4,34 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import com.intellij.openapi.util.SystemInfoRt
+import com.intellij.testFramework.common.timeoutRunBlocking
+import com.intellij.testFramework.junit5.TestApplication
 import dev.ashenarx.project.switcher.intellij.model.OpenTarget
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
+import dev.ashenarx.project.switcher.intellij.model.ProjectList
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.coroutines.EmptyCoroutineContext
 
 
+@TestApplication
 class PopupKeysTest {
 
     private val alpha = open("alpha")
     private val beta = recent("beta")
     private val gamma = recent("gamma")
-    private val current = open("current", isCurrent = true)
-    private val items = listOf(alpha, beta, gamma)
 
-    private val model = ProjectSwitcherModel(currentProject = null, coroutineScope = CoroutineScope(EmptyCoroutineContext))
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val actions = FakeProjectActions(ProjectList(open = listOf(alpha), recent = listOf(beta, gamma)))
+    private val model = ProjectSwitcherModel(currentProject = null, coroutineScope = scope, actions = actions)
     private val search = FakeSpeedSearch()
 
     private var closed = 0
@@ -30,17 +39,22 @@ class PopupKeysTest {
     private val reopened = mutableListOf<Pair<ProjectItem.Recent, OpenTarget>>()
     private val closedCurrent = mutableListOf<ProjectItem.Open>()
 
+    @AfterEach
+    fun cancelScope() {
+        scope.cancel("test finished")
+    }
+
     @Test
-    fun `key releases are ignored so one keystroke acts once`() {
-        model.selectedId = alpha.id
+    fun `key releases are ignored so one keystroke acts once`() = timeoutRunBlocking {
+        loadRows()
 
         assertFalse(press(Key.Enter, type = KeyEventType.KeyUp), "a key release must fall through unhandled")
         assertEquals(emptyList<ProjectItem.Open>(), opened)
     }
 
     @Test
-    fun `arrow keys walk the visible list across the section boundary`() {
-        model.selectedId = alpha.id
+    fun `arrow keys walk the visible list across the section boundary`() = timeoutRunBlocking {
+        loadRows()
 
         assertTrue(press(Key.DirectionDown))
         assertEquals(beta.id, model.selectedId)
@@ -53,8 +67,9 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `arrow keys wrap around at both ends`() {
-        model.selectedId = alpha.id
+    fun `arrow keys wrap around at both ends`() = timeoutRunBlocking {
+        loadRows()
+
         press(Key.DirectionUp)
         assertEquals(gamma.id, model.selectedId)
 
@@ -63,7 +78,9 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `arrow keys never reach speed search`() {
+    fun `arrow keys never reach speed search`() = timeoutRunBlocking {
+        loadRows()
+
         press(Key.DirectionDown)
         press(Key.DirectionUp)
 
@@ -71,8 +88,8 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `enter focuses the selected open project`() {
-        model.selectedId = alpha.id
+    fun `enter focuses the selected open project`() = timeoutRunBlocking {
+        loadRows()
 
         assertTrue(press(Key.Enter))
         assertEquals(listOf(alpha), opened)
@@ -80,8 +97,9 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `modifiers on enter choose where a recent project opens`() {
-        model.selectedId = beta.id
+    fun `modifiers on enter choose where a recent project opens`() = timeoutRunBlocking {
+        loadRows()
+        model.select(beta.id)
 
         press(Key.Enter)
         press(Key.Enter, ctrl = true)
@@ -95,8 +113,9 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `ctrl wins over shift when both are held`() {
-        model.selectedId = beta.id
+    fun `ctrl wins over shift when both are held`() = timeoutRunBlocking {
+        loadRows()
+        model.select(beta.id)
 
         press(Key.Enter, ctrl = true, shift = true)
 
@@ -104,8 +123,8 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `modifiers do not change how an open project is activated`() {
-        model.selectedId = alpha.id
+    fun `modifiers do not change how an open project is activated`() = timeoutRunBlocking {
+        loadRows()
 
         press(Key.Enter, ctrl = true)
 
@@ -113,38 +132,46 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `enter without a selection stays handled but does nothing`() {
-        model.selectedId = null
+    fun `enter without a selection stays handled but does nothing`() = timeoutRunBlocking {
+        val empty = modelOver(ProjectList.EMPTY)
+        assertNull(empty.selectedId)
 
-        assertTrue(press(Key.Enter), "swallowing enter keeps it from reaching speed search")
+        assertTrue(handle(event(Key.Enter), empty), "swallowing enter keeps it from reaching speed search")
         assertEquals(emptyList<ProjectItem.Open>(), opened)
         assertEquals(emptyList<Pair<ProjectItem.Recent, OpenTarget>>(), reopened)
     }
 
     @Test
-    fun `enter on a selection that the query filtered away does nothing`() {
-        model.selectedId = gamma.id
+    fun `enter follows the query rather than the row selected before it`() = timeoutRunBlocking {
+        loadRows()
+        model.select(gamma.id)
 
-        assertTrue(handle(event(Key.Enter), visible = listOf(alpha)))
-        assertEquals(emptyList<ProjectItem.Open>(), opened)
-        assertEquals(emptyList<Pair<ProjectItem.Recent, OpenTarget>>(), reopened)
+        model.query = "alpha"
+        assertTrue(press(Key.Enter))
+
+        assertEquals(listOf(alpha), opened, "the selection cannot survive outside the filtered list")
     }
 
     @Test
-    fun `alt-F2 closes the popup so the shortcut toggles it`() {
+    fun `alt-F2 closes the popup so the shortcut toggles it`() = timeoutRunBlocking {
+        loadRows()
+
         assertTrue(press(Key.F2, alt = true))
         assertEquals(1, closed)
     }
 
     @Test
-    fun `a bare F2 is left to speed search`() {
+    fun `a bare F2 is left to speed search`() = timeoutRunBlocking {
+        loadRows()
+
         assertTrue(press(Key.F2))
         assertEquals(0, closed)
         assertEquals(1, search.forwarded.size)
     }
 
     @Test
-    fun `escape first clears the search and only then closes the popup`() {
+    fun `escape first clears the search and only then closes the popup`() = timeoutRunBlocking {
+        loadRows()
         search.hideSearchResult = true
 
         assertTrue(press(Key.Escape))
@@ -157,20 +184,24 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `printable keys reach speed search`() {
+    fun `printable keys reach speed search`() = timeoutRunBlocking {
+        loadRows()
+
         assertTrue(press(Key.A))
         assertEquals(1, search.forwarded.size)
     }
 
     @Test
-    fun `delete and backspace only ever edit the query`() {
+    fun `delete and backspace only ever edit the query`() = timeoutRunBlocking {
         // A selected row and no query at all: the case that used to remove a project instead.
-        model.selectedId = beta.id
+        loadRows()
+        model.select(beta.id)
 
         assertTrue(press(Key.Backspace))
         assertTrue(press(Key.Delete))
 
         assertEquals(2, search.forwarded.size, "both keys belong to the search field now")
+        assertEquals(emptyList<String>(), actions.forgotten)
     }
 
     @Test
@@ -186,34 +217,87 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `the close shortcut is claimed by the popup rather than typed into the query`() {
-        // Selecting the current project keeps the platform services out of a plain unit test;
-        // ProjectSwitcherModelTest covers what closing a row actually does.
-        model.selectedId = current.id
+    fun `the close shortcut removes the selected recent project`() = timeoutRunBlocking {
+        loadRows()
+        model.select(beta.id)
 
-        assertTrue(handle(closeShortcut(), visible = items + current))
+        assertTrue(handle(closeShortcut()))
 
-        assertEquals(emptyList<KeyEvent>(), search.forwarded)
+        assertEquals(listOf(beta.path), actions.forgotten)
+        assertEquals(emptyList<KeyEvent>(), search.forwarded, "the query must not see the shortcut")
+
+        awaitRows { rows -> rows.all.none { it.id == beta.id } }
+        assertEquals(gamma.id, model.selectedId, "expected the row below the one that was removed")
     }
 
     @Test
-    fun `a bare W is left to speed search`() {
-        model.selectedId = current.id
+    fun `the close shortcut hands back the last open project instead of closing it itself`() =
+        timeoutRunBlocking {
+            val current = open("current", isCurrent = true)
+            val soleModel = modelOver(ProjectList(open = listOf(current), recent = emptyList()))
+
+            assertTrue(handle(closeShortcut(), soleModel))
+
+            assertEquals(listOf(current), closedCurrent)
+        }
+
+    @Test
+    fun `the close shortcut leaves the current project alone while another one is open`() =
+        timeoutRunBlocking {
+            val current = open("current", isCurrent = true)
+            val other = open("other")
+            val actions = FakeProjectActions(ProjectList(open = listOf(current, other), recent = emptyList()))
+            val twoOpen = modelOver(actions)
+            twoOpen.select(current.id)
+
+            assertTrue(handle(closeShortcut(), twoOpen))
+
+            assertEquals(emptyList<ProjectItem.Open>(), closedCurrent, "a window to switch to has to remain")
+            assertEquals(emptyList<ProjectItem.Open>(), actions.closed)
+        }
+
+    @Test
+    fun `a bare W is left to speed search`() = timeoutRunBlocking {
+        loadRows()
 
         assertTrue(press(Key.W))
 
         assertEquals(1, search.forwarded.size)
     }
 
-    private fun closeShortcut(): KeyEvent =
-        event(Key.W, ctrl = !SystemInfoRt.isMac, meta = SystemInfoRt.isMac)
-
     @Test
-    fun `an unhandled key reports whatever speed search reports`() {
+    fun `an unhandled key reports whatever speed search reports`() = timeoutRunBlocking {
+        loadRows()
         search.processResult = false
 
         assertFalse(press(Key.Tab), "an unconsumed key must stay available to the platform")
     }
+
+    private suspend fun loadRows() {
+        model.load()
+        awaitLoaded(model)
+    }
+
+    private suspend fun modelOver(projects: ProjectList): ProjectSwitcherModel =
+        modelOver(FakeProjectActions(projects))
+
+    private suspend fun modelOver(actions: FakeProjectActions): ProjectSwitcherModel {
+        val other = ProjectSwitcherModel(currentProject = null, coroutineScope = scope, actions = actions)
+        other.load()
+        awaitLoaded(other)
+        return other
+    }
+
+    private suspend fun awaitLoaded(model: ProjectSwitcherModel) {
+        while (model.loadState == ProjectLoadState.LOADING) delay(20)
+    }
+
+    private suspend fun awaitRows(matches: (ProjectList) -> Boolean) {
+        while (!matches(model.rows)) delay(20)
+    }
+
+    private fun closeShortcut(): KeyEvent =
+        event(Key.W, ctrl = !SystemInfoRt.isMac, meta = SystemInfoRt.isMac)
 
     private fun press(
         key: Key,
@@ -221,7 +305,7 @@ class PopupKeysTest {
         ctrl: Boolean = false,
         shift: Boolean = false,
         alt: Boolean = false,
-    ): Boolean = handle(event(key, type, ctrl, shift, alt), items)
+    ): Boolean = handle(event(key, type, ctrl, shift, alt))
 
     private fun event(
         key: Key,
@@ -239,10 +323,9 @@ class PopupKeysTest {
         isMetaPressed = meta,
     )
 
-    private fun handle(event: KeyEvent, visible: List<ProjectItem>): Boolean = handleKeyEvent(
+    private fun handle(event: KeyEvent, model: ProjectSwitcherModel = this.model): Boolean = handleKeyEvent(
         event = event,
         search = search,
-        items = visible,
         model = model,
         onClose = { closed++ },
         onSelectOpen = { opened += it },

@@ -40,7 +40,7 @@ class ProjectSwitcherModelTest {
     private val currentRow = open("current", isCurrent = true)
     private val middle = recent("middle")
     private val last = recent("last")
-    private val items = listOf(firstRow, currentRow, middle, last)
+    private val items = ProjectList(open = listOf(firstRow, currentRow), recent = listOf(middle, last))
 
     @AfterEach
     fun cancelScope() {
@@ -48,78 +48,104 @@ class ProjectSwitcherModelTest {
     }
 
     @Test
-    fun `the top match outranks the current project`() {
-        model.resetSelection(items, preferred = last)
+    fun `the top match outranks the current project`() = timeoutRunBlocking {
+        val model = modelOver(items)
+
+        model.query = "last"
 
         assertEquals(last.id, model.selectedId)
     }
 
     @Test
-    fun `without a top match the current project is selected, not the first row`() {
-        model.resetSelection(items, preferred = null)
+    fun `without a top match the current project is selected, not the first row`() = timeoutRunBlocking {
+        val model = modelOver(items)
 
         assertEquals(currentRow.id, model.selectedId)
     }
 
     @Test
-    fun `without a current project the first row is selected`() {
-        model.resetSelection(listOf(firstRow, middle), preferred = null)
+    fun `without a current project the first row is selected`() = timeoutRunBlocking {
+        val model = modelOver(ProjectList(open = listOf(firstRow), recent = listOf(middle)))
 
         assertEquals(firstRow.id, model.selectedId)
     }
 
     @Test
-    fun `an empty list leaves nothing selected`() {
-        model.resetSelection(items, preferred = null)
-        model.resetSelection(emptyList(), preferred = null)
+    fun `an empty list leaves nothing selected`() = timeoutRunBlocking {
+        val model = modelOver(ProjectList.EMPTY)
 
         assertNull(model.selectedId)
     }
 
     @Test
-    fun `a top match still wins after the user moved the selection by hand`() {
-        model.resetSelection(items, preferred = null)
-        model.selectedId = last.id
+    fun `a top match still wins after the user moved the selection by hand`() = timeoutRunBlocking {
+        val model = modelOver(items)
+        model.select(last.id)
 
-        model.resetSelection(items, preferred = firstRow)
+        model.query = "first"
 
-        assertEquals(firstRow.id, model.selectedId)
+        assertEquals(firstRow.id, model.selectedId, "a new ranking outranks the selection made under the old one")
+    }
+
+    @Test
+    fun `a selection made by hand survives a refresh that only fills in branch names`() = timeoutRunBlocking {
+        val actions = FakeProjectActions(items)
+        val model = modelOver(actions)
+        model.select(last.id)
+
+        actions.publish(items.withBranches())
+        model.refresh()
+
+        awaitRows(model) { rows -> rows.all.all { it.branch != null } }
+        assertEquals(last.id, model.selectedId)
     }
 
     @Test
     fun `after removing a project the selection moves to its neighbour`() = timeoutRunBlocking {
-        model.selectedId = middle.id
+        val actions = FakeProjectActions(items)
+        val model = modelOver(actions)
+        model.select(middle.id)
 
-        model.delete(middle, items)
-        model.resetSelection(listOf(firstRow, currentRow, last), preferred = null)
+        model.closeSelected()
 
-        // Without the pending selection this would fall back to the current project instead.
+        assertEquals(listOf(middle.path), actions.forgotten)
+        awaitRows(model) { rows -> rows.all.none { it.id == middle.id } }
+        // Without the removal being remembered this would fall back to the current project instead.
         assertEquals(last.id, model.selectedId, "expected the row below the one that was removed")
     }
 
     @Test
-    fun `a pending selection that the reload removed falls back to the default`() = timeoutRunBlocking {
-        model.selectedId = middle.id
+    fun `a remembered selection that the reload dropped falls back to the default`() = timeoutRunBlocking {
+        val actions = FakeProjectActions(items)
+        val model = modelOver(actions)
+        model.select(middle.id)
 
-        model.delete(middle, items)
-        // The reload came back without `last` either, so the pending id no longer resolves.
-        model.resetSelection(listOf(firstRow, currentRow), preferred = null)
+        model.closeSelected()
+        awaitRows(model) { rows -> rows.all.none { it.id == middle.id } }
 
+        // The next reload came back without `last` either, so the remembered id no longer resolves.
+        actions.forget(last.path)
+        model.refresh()
+
+        awaitRows(model) { rows -> rows.recent.isEmpty() }
         assertEquals(currentRow.id, model.selectedId, "expected the default, not a dangling id")
     }
 
     @Test
-    fun `a pending selection is consumed once`() = timeoutRunBlocking {
-        model.selectedId = middle.id
-        val remaining = listOf(firstRow, currentRow, last)
+    fun `closing the current project is left to the caller when another one is open`() = timeoutRunBlocking {
+        val actions = FakeProjectActions(items)
+        val model = modelOver(actions)
+        model.select(currentRow.id)
 
-        model.delete(middle, items)
-        model.resetSelection(remaining, preferred = null)
-        assertEquals(last.id, model.selectedId)
+        assertNull(model.closeSelected(), "the popup must not offer to close the only window in reach")
+        assertEquals(emptyList<ProjectItem.Open>(), actions.closed)
+    }
 
-        model.resetSelection(remaining, preferred = null)
+    @Test
+    fun `closing the last open project is handed back to the caller`() = timeoutRunBlocking {
+        val model = modelOver(ProjectList(open = listOf(currentRow), recent = listOf(middle)))
 
-        assertEquals(currentRow.id, model.selectedId, "the default applies again once the pending id is spent")
+        assertEquals(currentRow, model.closeSelected())
     }
 
     @Test
@@ -167,11 +193,31 @@ class ProjectSwitcherModelTest {
         assertTrue(model.projects.open.any { it.displayName == "ModelTest" })
     }
 
+    private suspend fun modelOver(projects: ProjectList): ProjectSwitcherModel =
+        modelOver(FakeProjectActions(projects))
+
+    private suspend fun modelOver(actions: FakeProjectActions): ProjectSwitcherModel {
+        val model = ProjectSwitcherModel(currentProject = null, coroutineScope = scope, actions = actions)
+        model.load()
+        while (model.loadState == ProjectLoadState.LOADING) delay(20)
+        return model
+    }
+
+    private suspend fun awaitRows(model: ProjectSwitcherModel, matches: (ProjectList) -> Boolean) {
+        while (!matches(model.rows)) delay(20)
+    }
+
     private suspend fun awaitLoaded(): ProjectLoadState? = withTimeoutOrNull(60.seconds) {
         while (model.loadState == ProjectLoadState.LOADING) delay(20)
         model.loadState
     }
 }
+
+/** The same rows the platform reports once its background branch lookup lands. */
+private fun ProjectList.withBranches(): ProjectList = ProjectList(
+    open = open.map { it.copy(branch = "main") },
+    recent = recent.map { it.copy(branch = "main") },
+)
 
 private object StubIcon : Icon {
     override fun paintIcon(c: Component?, g: Graphics?, x: Int, y: Int) = Unit

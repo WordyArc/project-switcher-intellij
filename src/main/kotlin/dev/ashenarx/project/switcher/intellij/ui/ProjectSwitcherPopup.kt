@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -49,17 +50,10 @@ internal fun ProjectSwitcherPopup(
     LaunchedEffect(model.projects) { entries.value = model.projects.all.map { it.searchText } }
     LaunchedEffect(searchState, entries) { searchState.attach(entries) }
 
-    // SpeedSearchState does not expose its matcher, which ranking also needs.
-    val matcher = remember(searchState.searchText) { ProjectMatcher(searchState.searchText) }
-
-    val hasQuery = searchState.searchText.isNotBlank()
-    val filtered = if (hasQuery) model.projects.rankedBy(matcher::degreeOrNull) else model.projects
-    val preferred = if (hasQuery) filtered.topMatch(matcher::degreeOrNull) else null
-
-    // Keyed on the row identities rather than the rows themselves: reset when ranking changes, not
-    // on every query keystroke, and not when a background refresh only fills in branch names.
-    val rowIds = filtered.all.map { it.id }
-    LaunchedEffect(rowIds, preferred) { model.resetSelection(filtered.all, preferred) }
+    // The overlay owns the text field, so the holder learns the query by mirroring it.
+    LaunchedEffect(searchState) {
+        snapshotFlow { searchState.searchText }.collect { model.query = it }
+    }
 
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -81,7 +75,6 @@ internal fun ProjectSwitcherPopup(
                     handleKeyEvent(
                         event = event,
                         search = search,
-                        items = filtered.all,
                         model = model,
                         onClose = onClose,
                         onSelectOpen = onSelectOpen,
@@ -101,10 +94,10 @@ internal fun ProjectSwitcherPopup(
             when (model.loadState) {
                 ProjectLoadState.LOADING -> CenteredMessage(ProjectSwitcherBundle.message("popup.loading"))
                 ProjectLoadState.ERROR -> CenteredMessage(ProjectSwitcherBundle.message("popup.error"))
-                ProjectLoadState.READY -> if (filtered.isEmpty) {
+                ProjectLoadState.READY -> if (model.rows.isEmpty) {
                     CenteredMessage(ProjectSwitcherBundle.message("popup.empty"))
                 } else ProjectRows(
-                    data = filtered,
+                    data = model.rows,
                     icons = model.icons,
                     selectedId = model.selectedId,
                     duplicateNames = model.projects.duplicateNames,

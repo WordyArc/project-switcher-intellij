@@ -1,6 +1,7 @@
 package dev.ashenarx.project.switcher.intellij.ui
 
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -14,10 +15,10 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
+import dev.ashenarx.project.switcher.intellij.model.ProjectMatcher
 import dev.ashenarx.project.switcher.intellij.model.defaultSelection
+import dev.ashenarx.project.switcher.intellij.model.moveSelection
 import dev.ashenarx.project.switcher.intellij.model.selectionAfterRemoving
-import dev.ashenarx.project.switcher.intellij.service.ProjectOpener
-import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,11 +29,11 @@ import kotlinx.coroutines.withContext
 import javax.swing.Icon
 import kotlin.time.TimeSource
 
-/** Compose state scoped explicitly because a JBPopup has no ViewModelStoreOwner. */
 @Stable
 internal class ProjectSwitcherModel(
     private val currentProject: Project?,
     private val coroutineScope: CoroutineScope,
+    private val actions: ProjectActions = PlatformProjectActions,
 ) {
 
     var projects: ProjectList by mutableStateOf(ProjectList.EMPTY)
@@ -44,11 +45,41 @@ internal class ProjectSwitcherModel(
     var loadState: ProjectLoadState by mutableStateOf(ProjectLoadState.LOADING)
         private set
 
-    var selectedId: String? by mutableStateOf(null)
+    /** Mirrored from the speed search overlay, which owns the text field the user types into. */
+    var query: String by mutableStateOf("")
 
-    private var pendingSelection: String? = null
+    private var choice: Choice? by mutableStateOf(null)
+
+    private var pendingSelection: String? by mutableStateOf(null)
 
     private var refreshJob: Job? = null
+
+    // Jewel's SpeedSearchState does not expose the matcher it builds, and ranking needs one too.
+    private val matcher: ProjectMatcher by derivedStateOf { ProjectMatcher(query) }
+
+    val rows: ProjectList by derivedStateOf {
+        if (query.isBlank()) projects else projects.rankedBy(matcher::degreeOrNull)
+    }
+
+    private val preferred: ProjectItem? by derivedStateOf {
+        if (query.isBlank()) null else rows.topMatch(matcher::degreeOrNull)
+    }
+
+    /**
+     * Derived rather than assigned, so nothing has to notice that the rows changed and correct it
+     * afterwards. A hand-made [choice] outranks the query's top match only for as long as the
+     * ranking it was made against still holds.
+     */
+    val selectedId: String? by derivedStateOf {
+        val ids = rows.all.map { it.id }
+
+        choice?.takeIf { it.ranking == ids && it.instead == preferred?.id }?.id
+            ?: preferred?.id
+            ?: pendingSelection?.takeIf { it in ids }
+            ?: defaultSelection(rows.all)
+    }
+
+    val selectedItem: ProjectItem? by derivedStateOf { rows.all.firstOrNull { it.id == selectedId } }
 
     fun load() {
         coroutineScope.coroutineContext.cancelChildren()
@@ -59,7 +90,7 @@ internal class ProjectSwitcherModel(
             val started = TimeSource.Monotonic.markNow()
 
             val loaded = try {
-                RecentProjectsService.getInstance().collect(currentProject)
+                actions.collect(currentProject)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -94,7 +125,7 @@ internal class ProjectSwitcherModel(
         refreshJob?.cancel()
         refreshJob = coroutineScope.launch {
             val loaded = try {
-                RecentProjectsService.getInstance().collect(currentProject)
+                actions.collect(currentProject)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -111,11 +142,50 @@ internal class ProjectSwitcherModel(
         }
     }
 
+    fun select(id: String?) {
+        // A deliberate move supersedes whatever a removal left behind.
+        pendingSelection = null
+        choice = id?.let { Choice(id = it, ranking = rows.all.map(ProjectItem::id), instead = preferred?.id) }
+    }
+
+    fun moveSelection(delta: Int) {
+        select(moveSelection(rows.all, selectedId, delta))
+    }
+
+    /**
+     * Removes the selected row, and returns the project the caller has to close itself. Closing the
+     * current project is the caller's to do, and only worth offering when no other project is open:
+     * otherwise the popup would leave the user with no window to switch to.
+     */
+    fun closeSelected(): ProjectItem.Open? {
+        val selected = selectedItem ?: return null
+
+        if (selected.isCurrent) {
+            return (selected as? ProjectItem.Open)?.takeIf { projects.open.size == 1 }
+        }
+
+        delete(selected)
+        return null
+    }
+
+    /** Reloads platform state because a closed project moves into the recent section. */
+    private fun delete(item: ProjectItem) {
+        choice = null
+        pendingSelection = selectionAfterRemoving(rows.all, item.id)
+
+        when (item) {
+            is ProjectItem.Open -> actions.close(item)
+            is ProjectItem.Recent -> actions.forget(item.path)
+        }
+
+        load()
+    }
+
     private suspend fun loadIcons(paths: List<String>) {
         if (paths.isEmpty()) return
 
         try {
-            RecentProjectsService.getInstance().loadIcons(paths) { path, icon ->
+            actions.loadIcons(paths) { path, icon ->
                 onEdt { icons[path] = icon }
             }
         } catch (e: CancellationException) {
@@ -129,26 +199,8 @@ internal class ProjectSwitcherModel(
     private suspend fun <T> onEdt(block: () -> T): T =
         withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) { block() }
 
-    /** Reloads platform state because a closed project moves into the recent section. */
-    fun delete(item: ProjectItem, visible: List<ProjectItem>) {
-        pendingSelection = selectionAfterRemoving(visible, item.id)
-
-        when (item) {
-            is ProjectItem.Open -> ProjectOpener.getInstance().close(item)
-            is ProjectItem.Recent -> RecentProjectsService.getInstance().forget(item.path)
-        }
-
-        load()
-    }
-
-    /** Call only when list content or [preferred] changes, so arrow-key selection is not overwritten. */
-    fun resetSelection(visible: List<ProjectItem>, preferred: ProjectItem?) {
-        val pending = pendingSelection?.also { pendingSelection = null }
-
-        selectedId = preferred?.id
-            ?: pending?.takeIf { id -> visible.any { it.id == id } }
-            ?: defaultSelection(visible)
-    }
+    /** A hand-made selection, kept together with the ranking that was on screen when it was made. */
+    private data class Choice(val id: String, val ranking: List<String>, val instead: String?)
 }
 
 internal enum class ProjectLoadState {

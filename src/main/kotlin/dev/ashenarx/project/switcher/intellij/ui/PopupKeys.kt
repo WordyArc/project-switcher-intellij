@@ -12,7 +12,6 @@ import androidx.compose.ui.input.key.type
 import com.intellij.openapi.util.SystemInfoRt
 import dev.ashenarx.project.switcher.intellij.model.OpenTarget
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
-import dev.ashenarx.project.switcher.intellij.model.moveSelection
 import org.jetbrains.jewel.ui.component.SpeedSearchScope
 
 /**
@@ -34,7 +33,6 @@ internal fun SpeedSearchScope.asSpeedSearch(): SpeedSearch = object : SpeedSearc
 internal fun handleKeyEvent(
     event: KeyEvent,
     search: SpeedSearch,
-    items: List<ProjectItem>,
     model: ProjectSwitcherModel,
     onClose: () -> Unit,
     onSelectOpen: (ProjectItem.Open) -> Unit,
@@ -49,23 +47,23 @@ internal fun handleKeyEvent(
     }
 
     if (event.isCloseShortcut()) {
-        closeSelection(items, model, onCloseCurrent)
+        model.closeSelected()?.let(onCloseCurrent)
         return true
     }
 
     return when (event.key) {
         Key.DirectionDown -> {
-            model.selectedId = moveSelection(items, model.selectedId, delta = +1)
+            model.moveSelection(delta = +1)
             true
         }
 
         Key.DirectionUp -> {
-            model.selectedId = moveSelection(items, model.selectedId, delta = -1)
+            model.moveSelection(delta = -1)
             true
         }
 
         Key.Enter -> {
-            activateSelection(event, items, model.selectedId, onSelectOpen, onSelectRecent)
+            activateSelection(event, model.selectedItem, onSelectOpen, onSelectRecent)
             true
         }
 
@@ -78,30 +76,13 @@ internal fun handleKeyEvent(
     }
 }
 
-/** Refuses to close the current project when another project is available to switch to. */
-private fun closeSelection(
-    items: List<ProjectItem>,
-    model: ProjectSwitcherModel,
-    onCloseCurrent: (ProjectItem.Open) -> Unit,
-) {
-    val selected = items.firstOrNull { it.id == model.selectedId } ?: return
-
-    if (selected.isCurrent) {
-        if (model.projects.open.size == 1) (selected as? ProjectItem.Open)?.let(onCloseCurrent)
-        return
-    }
-
-    model.delete(selected, items)
-}
-
 private fun activateSelection(
     event: KeyEvent,
-    items: List<ProjectItem>,
-    selectedId: String?,
+    selected: ProjectItem?,
     onSelectOpen: (ProjectItem.Open) -> Unit,
     onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
 ) {
-    when (val selected = items.firstOrNull { it.id == selectedId }) {
+    when (selected) {
         is ProjectItem.Open -> onSelectOpen(selected)
         is ProjectItem.Recent -> onSelectRecent(selected, event.openTarget())
         null -> Unit
