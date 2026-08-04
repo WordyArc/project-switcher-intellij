@@ -99,11 +99,19 @@ class ProjectListTest {
     }
 
     @Test
-    fun `moveSelection clamps at both ends`() {
+    fun `moveSelection wraps around at both ends`() {
         val items = listOf(open("alpha", "/a"), recent("beta", "/b"))
 
+        assertEquals("recent:/b", moveSelection(items, "open:hash-alpha", delta = -1))
+        assertEquals("open:hash-alpha", moveSelection(items, "recent:/b", delta = +1))
+    }
+
+    @Test
+    fun `moveSelection wraps a single row onto itself`() {
+        val items = listOf(open("alpha", "/a"))
+
         assertEquals("open:hash-alpha", moveSelection(items, "open:hash-alpha", delta = -1))
-        assertEquals("recent:/b", moveSelection(items, "recent:/b", delta = +1))
+        assertEquals("open:hash-alpha", moveSelection(items, "open:hash-alpha", delta = +1))
     }
 
     @Test

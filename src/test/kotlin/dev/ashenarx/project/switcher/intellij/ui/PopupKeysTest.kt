@@ -51,14 +51,13 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `arrow keys stop at both ends instead of wrapping`() {
+    fun `arrow keys wrap around at both ends`() {
         model.selectedId = alpha.id
         press(Key.DirectionUp)
-        assertEquals(alpha.id, model.selectedId)
-
-        model.selectedId = gamma.id
-        press(Key.DirectionDown)
         assertEquals(gamma.id, model.selectedId)
+
+        press(Key.DirectionDown)
+        assertEquals(alpha.id, model.selectedId)
     }
 
     @Test

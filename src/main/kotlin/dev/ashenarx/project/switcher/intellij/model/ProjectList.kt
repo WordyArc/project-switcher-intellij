@@ -44,7 +44,7 @@ fun moveSelection(items: List<ProjectItem>, selectedId: String?, delta: Int): St
     if (items.isEmpty()) return null
 
     val currentIndex = items.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
-    val newIndex = (currentIndex + delta).coerceIn(0, items.lastIndex)
+    val newIndex = (currentIndex + delta).mod(items.size)
     return items[newIndex].id
 }
 
