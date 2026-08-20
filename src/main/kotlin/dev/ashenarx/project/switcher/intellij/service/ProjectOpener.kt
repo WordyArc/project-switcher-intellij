@@ -5,7 +5,6 @@ import com.intellij.ide.RecentProjectListActionProvider
 import com.intellij.ide.RecentProjectsManager
 import com.intellij.ide.RecentProjectsManagerBase
 import com.intellij.ide.ReopenProjectAction
-import com.intellij.ide.impl.OpenProjectTask
 import com.intellij.ide.impl.ProjectUtil
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -84,11 +83,10 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
                     return@runCatching
                 }
 
-                val options = OpenProjectTask.build().copy(
-                    projectToClose = contextProject,
-                    forceOpenInNewFrame = target == OpenTarget.NewWindow,
-                    forceReuseFrame = target == OpenTarget.CurrentWindow,
-                    runConfigurators = true,
+                val options = OpenProjectTaskFactory.create(
+                    contextProject,
+                    target == OpenTarget.NewWindow,
+                    target == OpenTarget.CurrentWindow,
                 )
 
                 val opened = RecentProjectsManagerBase.getInstanceEx().openProject(file, options)

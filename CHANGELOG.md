@@ -2,6 +2,10 @@
 
 The topmost section is published as the plugin's change notes.
 
+## 1.1.1
+
+- Fix IntelliJ Platform binary compatibility regression.
+
 ## 1.1.0
 
 - <kbd>Up</kbd> and <kbd>Down</kbd> now wrap around the list: moving up from the first row selects the last one, and moving down from the last row returns to the first.
