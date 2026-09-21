@@ -36,7 +36,6 @@ import java.awt.Component
 import java.nio.file.Files
 import java.nio.file.Path
 
-/** Must be called on the EDT. */
 @Service(Service.Level.APP)
 class ProjectOpener(private val coroutineScope: CoroutineScope) {
 
