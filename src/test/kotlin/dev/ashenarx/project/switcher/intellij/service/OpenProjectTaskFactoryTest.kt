@@ -39,6 +39,11 @@ class OpenProjectTaskFactoryTest {
             },
             "construction must not depend on OpenProjectTask's data-class ABI",
         )
+        assertEquals(
+            emptyList<String>(),
+            platformCalls.filter { it.startsWith("com/intellij/ide/impl/OpenProjectTaskBuilder.setRunConfigurators(") },
+            "runConfigurators changed from Boolean to Boolean? in 263, so its setter must be bound at runtime",
+        )
     }
 
     @Test

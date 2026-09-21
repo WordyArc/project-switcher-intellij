@@ -2,6 +2,10 @@
 
 The topmost section is published as the plugin's change notes.
 
+## 1.*.*
+
+- The plugin installs on 2026.3 EAP, where reopening a recent project used to be rejected as incompatible.
+
 ## 1.1.2
 
 - The characters that matched the search are highlighted in project names, and in paths where those are shown.
