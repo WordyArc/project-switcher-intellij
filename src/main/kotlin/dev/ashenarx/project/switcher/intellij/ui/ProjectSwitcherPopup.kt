@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -27,6 +28,7 @@ import dev.ashenarx.project.switcher.intellij.model.OpenTarget
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
 import dev.ashenarx.project.switcher.intellij.model.ProjectMatcher
+import dev.ashenarx.project.switcher.intellij.model.SwitchOutcome
 import dev.ashenarx.project.switcher.intellij.model.searchText
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.jetbrains.jewel.foundation.theme.JewelTheme
@@ -39,9 +41,7 @@ import javax.swing.Icon
 internal fun ProjectSwitcherPopup(
     model: ProjectSwitcherModel,
     onClose: () -> Unit,
-    onSelectOpen: (ProjectItem.Open) -> Unit,
-    onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
-    onCloseCurrent: (ProjectItem.Open) -> Unit,
+    onResult: (SwitchOutcome) -> Unit,
 ) {
     val searchState = rememberSpeedSearchState { text -> ProjectMatcher(text) }
 
@@ -76,9 +76,7 @@ internal fun ProjectSwitcherPopup(
                         search = search,
                         model = model,
                         onClose = onClose,
-                        onSelectOpen = onSelectOpen,
-                        onSelectRecent = onSelectRecent,
-                        onCloseCurrent = onCloseCurrent,
+                        onResult = onResult,
                     )
                 }
         ) {
@@ -100,8 +98,7 @@ internal fun ProjectSwitcherPopup(
                     icons = model.icons,
                     selectedId = model.selectedId,
                     duplicateNames = model.projects.duplicateNames,
-                    onSelectOpen = onSelectOpen,
-                    onSelectRecent = onSelectRecent,
+                    onResult = onResult,
                 )
             }
         }
@@ -114,8 +111,7 @@ private fun ProjectRows(
     icons: Map<String, Icon>,
     selectedId: String?,
     duplicateNames: Set<String>,
-    onSelectOpen: (ProjectItem.Open) -> Unit,
-    onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
+    onResult: (SwitchOutcome) -> Unit,
 ) {
     val listState = rememberLazyListState()
 
@@ -127,31 +123,33 @@ private fun ProjectRows(
 
     // Reading each icon inside its item scope limits arrivals to one-row recompositions.
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-        items(data.open, key = { it.id }) { item ->
-            ProjectRow(
-                item = item,
-                icon = icons[item.path],
-                isSelected = item.id == selectedId,
-                showPath = item.displayName in duplicateNames,
-                onClick = { onSelectOpen(item) },
-            )
-        }
+        projectRows(data.open, icons, selectedId, duplicateNames, onResult)
 
         if (data.hasRecent) {
             item(key = "header:recent") {
                 SectionHeader(ProjectSwitcherBundle.message("popup.section.recent"))
             }
 
-            items(data.recent, key = { it.id }) { item ->
-                ProjectRow(
-                    item = item,
-                    icon = icons[item.path],
-                    isSelected = item.id == selectedId,
-                    showPath = item.displayName in duplicateNames,
-                    onClick = { onSelectRecent(item, OpenTarget.Ask) },
-                )
-            }
+            projectRows(data.recent, icons, selectedId, duplicateNames, onResult)
         }
+    }
+}
+
+private fun LazyListScope.projectRows(
+    items: List<ProjectItem>,
+    icons: Map<String, Icon>,
+    selectedId: String?,
+    duplicateNames: Set<String>,
+    onResult: (SwitchOutcome) -> Unit,
+) {
+    items(items, key = { it.id }) { item ->
+        ProjectRow(
+            item = item,
+            icon = icons[item.path],
+            isSelected = item.id == selectedId,
+            showPath = item.displayName in duplicateNames,
+            onClick = { onResult(SwitchOutcome.of(item, OpenTarget.Ask)) },
+        )
     }
 }
 

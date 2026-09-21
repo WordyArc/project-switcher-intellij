@@ -1,7 +1,6 @@
 package dev.ashenarx.project.switcher.intellij.service
 
 import com.intellij.ide.DataManager
-import com.intellij.ide.RecentProjectListActionProvider
 import com.intellij.ide.RecentProjectsManager
 import com.intellij.ide.RecentProjectsManagerBase
 import com.intellij.ide.ReopenProjectAction
@@ -22,7 +21,6 @@ import com.intellij.openapi.diagnostic.getOrHandleException
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.openapi.wm.impl.welcomeScreen.WelcomeFrame
 import dev.ashenarx.project.switcher.intellij.ProjectSwitcherBundle
@@ -133,11 +131,7 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
     }
 
     private fun findReopenAction(path: String): ReopenProjectAction? =
-        RecentProjectListActionProvider.getInstance()
-            .getActions()
-            .asSequence()
-            .filterIsInstance<ReopenProjectAction>()
-            .firstOrNull { FileUtil.toSystemIndependentName(it.projectPath) == path }
+        recentProjectActions().firstOrNull { it.normalizedPath == path }
 
     private fun contextComponent(contextProject: Project?): Component? {
         val frame = contextProject?.takeIf { !it.isDisposed }

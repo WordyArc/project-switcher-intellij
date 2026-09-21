@@ -1,7 +1,7 @@
 package dev.ashenarx.project.switcher.intellij.service
 
-import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService.Companion.distinctIconPaths
-import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService.Companion.iconSizePasses
+import dev.ashenarx.project.switcher.intellij.service.ProjectIconLoader.Companion.distinctIconPaths
+import dev.ashenarx.project.switcher.intellij.service.ProjectIconLoader.Companion.iconSizePasses
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test

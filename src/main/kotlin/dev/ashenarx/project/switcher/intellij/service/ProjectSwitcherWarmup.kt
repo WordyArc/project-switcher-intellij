@@ -11,6 +11,6 @@ internal class ProjectSwitcherWarmup : ProjectActivity {
         // are long enough to turn that into a timeout.
         if (ApplicationManager.getApplication().isUnitTestMode) return
 
-        RecentProjectsService.getInstance().warmUp()
+        ProjectIconLoader.getInstance().warmUp()
     }
 }

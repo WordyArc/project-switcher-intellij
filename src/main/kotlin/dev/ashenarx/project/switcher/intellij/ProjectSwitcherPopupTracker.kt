@@ -1,12 +1,10 @@
-package dev.ashenarx.project.switcher.intellij.ui
+package dev.ashenarx.project.switcher.intellij
 
-import com.intellij.openapi.components.Service
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupListener
 import com.intellij.openapi.ui.popup.LightweightWindowEvent
 import java.util.concurrent.atomic.AtomicReference
 
-@Service(Service.Level.APP)
 internal class ProjectSwitcherPopupTracker {
 
     private val current = AtomicReference<JBPopup?>(null)
@@ -24,7 +22,6 @@ internal class ProjectSwitcherPopupTracker {
 
         popup.addListener(object : JBPopupListener {
             override fun onClosed(event: LightweightWindowEvent) {
-                // An older popup's close event must not unregister a newer one.
                 current.compareAndSet(popup, null)
             }
         })

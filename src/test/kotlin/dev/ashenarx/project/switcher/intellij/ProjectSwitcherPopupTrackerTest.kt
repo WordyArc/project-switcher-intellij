@@ -1,4 +1,4 @@
-package dev.ashenarx.project.switcher.intellij.ui
+package dev.ashenarx.project.switcher.intellij
 
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupListener

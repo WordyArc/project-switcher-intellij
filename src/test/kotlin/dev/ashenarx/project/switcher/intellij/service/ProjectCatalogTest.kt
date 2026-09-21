@@ -14,19 +14,18 @@ import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * Exercises [RecentProjectsService.collect] against real platform state: real open projects and real
+ * Exercises [ProjectCatalog.collect] against real platform state: real open projects and real
  * [com.intellij.ide.ReopenProjectAction]s built by the platform's own provider. Stubbing the provider
  * instead would hide exactly the coupling this covers — path normalisation and recent ordering.
  */
 @TestApplication
-class RecentProjectsServiceTest {
+class ProjectCatalogTest {
 
     private companion object {
         // The directory name becomes the project name; the casing is what the sorting test needs.
@@ -37,7 +36,7 @@ class RecentProjectsServiceTest {
             ExtensionPointName<RecentProjectsBranchesProvider>("com.intellij.recentProjectsBranchesProvider")
     }
 
-    private val service get() = RecentProjectsService.getInstance()
+    private val catalog get() = ProjectCatalog.getInstance()
 
     @BeforeEach
     @AfterEach
@@ -47,7 +46,7 @@ class RecentProjectsServiceTest {
 
     @Test
     fun `open projects are listed and sorted by name, ignoring case`() = timeoutRunBlocking {
-        val names = service.collect(currentProject = null).open.map { it.displayName }
+        val names = catalog.collect(currentProject = null).open.map { it.displayName }
 
         assertEquals(
             listOf("apple", "Zebra"),
@@ -58,7 +57,7 @@ class RecentProjectsServiceTest {
 
     @Test
     fun `the project the popup was invoked from is the only one marked current`() = timeoutRunBlocking {
-        val open = service.collect(currentProject = apple.get()).open
+        val open = catalog.collect(currentProject = apple.get()).open
 
         assertEquals(listOf("apple"), open.filter { it.isCurrent }.map { it.displayName })
         assertTrue(open.any { it.displayName == "Zebra" && !it.isCurrent }, "expected Zebra listed but not current")
@@ -66,7 +65,7 @@ class RecentProjectsServiceTest {
 
     @Test
     fun `an open project carries the location hash the opener matches on`() = timeoutRunBlocking {
-        val item = service.collect(currentProject = null).open.single { it.displayName == "apple" }
+        val item = catalog.collect(currentProject = null).open.single { it.displayName == "apple" }
 
         assertEquals(apple.get().locationHash, item.locationHash)
         assertEquals("open:${apple.get().locationHash}", item.id)
@@ -77,7 +76,7 @@ class RecentProjectsServiceTest {
         // The platform lists open projects among the recent ones too; the popup must not show both.
         seedRecent(pathOf(apple.get()), name = "apple")
 
-        val list = service.collect(currentProject = null)
+        val list = catalog.collect(currentProject = null)
 
         assertEquals(listOf("apple"), list.all.filter { it.displayName == "apple" }.map { it.displayName })
         assertTrue(list.open.any { it.displayName == "apple" }, "the open entry is the one that must survive")
@@ -90,7 +89,7 @@ class RecentProjectsServiceTest {
         val middle = seedRecent(name = "middle")
         val newest = seedRecent(name = "newest")
 
-        val recent = service.collect(currentProject = null).recent
+        val recent = catalog.collect(currentProject = null).recent
 
         assertEquals(listOf("newest", "middle", "oldest"), recent.map { it.displayName })
         assertEquals(listOf(newest, middle, oldest), recent.map { it.path })
@@ -100,7 +99,7 @@ class RecentProjectsServiceTest {
     fun `a recent project is identified by its normalised path`() = timeoutRunBlocking {
         val path = seedRecent(name = "solo")
 
-        val item = service.collect(currentProject = null).recent.single()
+        val item = catalog.collect(currentProject = null).recent.single()
 
         assertEquals(path, item.path)
         assertEquals("recent:$path", item.id)
@@ -121,7 +120,7 @@ class RecentProjectsServiceTest {
                 fireEvents = false,
             )
 
-            val list = service.collect(currentProject = null)
+            val list = catalog.collect(currentProject = null)
 
             assertEquals("main", list.open.single { it.displayName == "apple" }.branch)
             assertEquals("release/24.1", list.recent.single { it.displayName == "detached" }.branch)
@@ -131,7 +130,7 @@ class RecentProjectsServiceTest {
     fun `a project with no branch information simply has none`() = timeoutRunBlocking {
         seedRecent(name = "plain")
 
-        assertNull(service.collect(currentProject = null).recent.single().branch)
+        assertNull(catalog.collect(currentProject = null).recent.single().branch)
     }
 
     @Test
@@ -139,9 +138,9 @@ class RecentProjectsServiceTest {
         val kept = seedRecent(name = "kept")
         val dropped = seedRecent(name = "dropped")
 
-        service.forget(dropped)
+        catalog.forget(dropped)
 
-        val recent = service.collect(currentProject = null).recent
+        val recent = catalog.collect(currentProject = null).recent
 
         assertEquals(listOf(kept), recent.map { it.path })
     }
@@ -151,17 +150,11 @@ class RecentProjectsServiceTest {
         val openPath = pathOf(apple.get())
         seedRecent(openPath, name = "apple")
 
-        service.forget(openPath)
+        catalog.forget(openPath)
 
-        val list = service.collect(currentProject = null)
+        val list = catalog.collect(currentProject = null)
 
         assertTrue(list.open.any { it.displayName == "apple" }, "the project is still open, so it stays listed")
-    }
-
-    @Test
-    fun `warm up does its work once per IDE run`() = timeoutRunBlocking {
-        assertTrue(service.warmUp(), "the first call has to do the warming")
-        assertFalse(service.warmUp(), "a second call must not repeat the icon passes")
     }
 
     /** Seeds one recent entry. Oldest first: the platform hands recents back in reverse. */

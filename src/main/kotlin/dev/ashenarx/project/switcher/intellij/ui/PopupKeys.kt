@@ -11,7 +11,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import com.intellij.openapi.util.SystemInfoRt
 import dev.ashenarx.project.switcher.intellij.model.OpenTarget
-import dev.ashenarx.project.switcher.intellij.model.ProjectItem
+import dev.ashenarx.project.switcher.intellij.model.SwitchOutcome
 import org.jetbrains.jewel.ui.component.SpeedSearchScope
 
 /**
@@ -35,9 +35,7 @@ internal fun handleKeyEvent(
     search: SpeedSearch,
     model: ProjectSwitcherModel,
     onClose: () -> Unit,
-    onSelectOpen: (ProjectItem.Open) -> Unit,
-    onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
-    onCloseCurrent: (ProjectItem.Open) -> Unit,
+    onResult: (SwitchOutcome) -> Unit,
 ): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
 
@@ -47,7 +45,7 @@ internal fun handleKeyEvent(
     }
 
     if (event.isCloseShortcut()) {
-        model.closeSelected()?.let(onCloseCurrent)
+        model.closeSelected()?.let { onResult(SwitchOutcome.CloseCurrent(it)) }
         return true
     }
 
@@ -63,7 +61,7 @@ internal fun handleKeyEvent(
         }
 
         Key.Enter -> {
-            activateSelection(event, model.selectedItem, onSelectOpen, onSelectRecent)
+            model.selectedItem?.let { onResult(SwitchOutcome.of(it, event.openTarget())) }
             true
         }
 
@@ -73,19 +71,6 @@ internal fun handleKeyEvent(
         }
 
         else -> search.processKeyEvent(event)
-    }
-}
-
-private fun activateSelection(
-    event: KeyEvent,
-    selected: ProjectItem?,
-    onSelectOpen: (ProjectItem.Open) -> Unit,
-    onSelectRecent: (ProjectItem.Recent, OpenTarget) -> Unit,
-) {
-    when (selected) {
-        is ProjectItem.Open -> onSelectOpen(selected)
-        is ProjectItem.Recent -> onSelectRecent(selected, event.openTarget())
-        null -> Unit
     }
 }
 

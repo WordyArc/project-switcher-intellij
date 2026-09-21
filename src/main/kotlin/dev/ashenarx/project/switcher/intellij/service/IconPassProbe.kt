@@ -49,6 +49,6 @@ internal class IconPassProbe(private val size: Int, private val icons: Int, priv
     }
 
     private companion object {
-        val LOG = logger<RecentProjectsService>()
+        val LOG = logger<ProjectIconLoader>()
     }
 }

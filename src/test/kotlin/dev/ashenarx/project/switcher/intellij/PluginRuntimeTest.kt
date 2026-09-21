@@ -4,9 +4,9 @@ import com.intellij.notification.NotificationGroupManager
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.components.service
 import com.intellij.testFramework.junit5.TestApplication
+import dev.ashenarx.project.switcher.intellij.service.ProjectCatalog
+import dev.ashenarx.project.switcher.intellij.service.ProjectIconLoader
 import dev.ashenarx.project.switcher.intellij.service.ProjectOpener
-import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService
-import dev.ashenarx.project.switcher.intellij.ui.ProjectSwitcherPopupTracker
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -34,9 +34,10 @@ class PluginRuntimeTest {
 
     @Test
     fun `application services resolve and are singletons`() {
-        assertSame(RecentProjectsService.getInstance(), RecentProjectsService.getInstance())
+        assertSame(ProjectCatalog.getInstance(), ProjectCatalog.getInstance())
+        assertSame(ProjectIconLoader.getInstance(), ProjectIconLoader.getInstance())
         assertSame(ProjectOpener.getInstance(), ProjectOpener.getInstance())
-        assertNotNull(service<ProjectSwitcherPopupTracker>())
+        assertNotNull(service<ProjectSwitcherPopupService>())
     }
 
     @Test

@@ -9,6 +9,7 @@ import com.intellij.testFramework.junit5.TestApplication
 import dev.ashenarx.project.switcher.intellij.model.OpenTarget
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
+import dev.ashenarx.project.switcher.intellij.model.SwitchOutcome
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,9 +35,16 @@ class PopupKeysTest {
     private val search = FakeSpeedSearch()
 
     private var closed = 0
-    private val opened = mutableListOf<ProjectItem.Open>()
-    private val reopened = mutableListOf<Pair<ProjectItem.Recent, OpenTarget>>()
-    private val closedCurrent = mutableListOf<ProjectItem.Open>()
+    private val outcomes = mutableListOf<SwitchOutcome>()
+
+    private val opened: List<ProjectItem.Open>
+        get() = outcomes.filterIsInstance<SwitchOutcome.Focus>().map { it.project }
+
+    private val reopened: List<Pair<ProjectItem.Recent, OpenTarget>>
+        get() = outcomes.filterIsInstance<SwitchOutcome.Reopen>().map { it.project to it.target }
+
+    private val closedCurrent: List<ProjectItem.Open>
+        get() = outcomes.filterIsInstance<SwitchOutcome.CloseCurrent>().map { it.project }
 
     @AfterEach
     fun cancelScope() {
@@ -327,9 +335,7 @@ class PopupKeysTest {
         search = search,
         model = model,
         onClose = { closed++ },
-        onSelectOpen = { opened += it },
-        onSelectRecent = { item, target -> reopened += item to target },
-        onCloseCurrent = { closedCurrent += it },
+        onResult = { outcomes += it },
     )
 
     private class FakeSpeedSearch : SpeedSearch {

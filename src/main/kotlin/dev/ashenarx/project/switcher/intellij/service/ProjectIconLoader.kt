@@ -1,11 +1,8 @@
 package dev.ashenarx.project.switcher.intellij.service
 
-import com.intellij.ide.ReopenProjectAction
-import com.intellij.ide.RecentProjectListActionProvider
 import com.intellij.ide.RecentProjectsManager
 import com.intellij.ide.RecentProjectsManagerBase
-import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.ApplicationManager
+import com.intellij.ide.ReopenProjectAction
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.asContextElement
@@ -13,15 +10,9 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.thisLogger
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManager
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.ui.DeferredIcon
 import com.intellij.ui.scale.JBUIScale
-import dev.ashenarx.project.switcher.intellij.model.ProjectItem
-import dev.ashenarx.project.switcher.intellij.model.ProjectList
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -39,45 +30,11 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.measureTime
 
 @Service(Service.Level.APP)
-class RecentProjectsService(val coroutineScope: CoroutineScope) {
+class ProjectIconLoader {
 
-    private val iconPermits = Semaphore(MAX_CONCURRENT_ICON_LOADS)
+    private val permits = Semaphore(MAX_CONCURRENT_LOADS)
 
     private val warmedUp = AtomicBoolean()
-
-    suspend fun collect(currentProject: Project?): ProjectList = withContext(Dispatchers.IO) {
-        val recentActions = recentActionsByPath()
-
-        val openProjects = ProjectManager.getInstance().openProjects.filter { !it.isDisposed }
-        val openPaths = openProjects.mapTo(mutableSetOf()) { pathOf(it) }
-
-        val open = openProjects
-            .map { project ->
-                val path = pathOf(project)
-
-                ProjectItem.Open(
-                    locationHash = project.locationHash,
-                    displayName = project.name,
-                    path = path,
-                    branch = recentActions[path]?.branchName,
-                    isCurrent = project == currentProject,
-                )
-            }
-            .sortedBy { it.displayName.lowercase() }
-
-        val recent = recentActions
-            .filterKeys { it !in openPaths }
-            .values
-            .map { action ->
-                ProjectItem.Recent(
-                    displayName = action.projectNameToDisplay,
-                    path = normalize(action.projectPath),
-                    branch = action.branchName,
-                )
-            }
-
-        ProjectList(open = open, recent = recent)
-    }
 
     /** Streams cached-size icons first, then replaces them with HiDPI versions as they load. */
     suspend fun loadIcons(paths: List<String>, emit: suspend (String, Icon) -> Unit) {
@@ -92,14 +49,14 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         val uniquePaths = distinctIconPaths(paths)
 
         for (size in iconSizePasses(JBUIScale.sysScale())) {
-            val probe = IconPassProbe(size, uniquePaths.size, MAX_CONCURRENT_ICON_LOADS)
+            val probe = IconPassProbe(size, uniquePaths.size, MAX_CONCURRENT_LOADS)
 
             // Finish the coarse pass before a later, crisp icon can be emitted.
             probe.pass {
                 coroutineScope {
                     for (path in uniquePaths) {
                         launch {
-                            iconPermits.withPermit {
+                            permits.withPermit {
                                 val icon = probe.fetch { projectIcon(recentManager, path, size) }
                                     ?: return@withPermit
 
@@ -116,40 +73,11 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         if (!warmedUp.compareAndSet(false, true)) return false
 
         val elapsed = measureTime {
-            val projects = collect(currentProject = null)
+            val projects = ProjectCatalog.getInstance().collect(currentProject = null)
             loadIcons(projects.all.map { it.path }) { _, _ -> }
         }
         thisLogger().debug { "Warmed the project list and icons in ${elapsed.inWholeMilliseconds} ms" }
         return true
-    }
-
-    fun forget(path: String) {
-        service<RecentProjectsManager>().removePath(path)
-    }
-
-    /**
-     * A recent project's branch comes from a background caffeine cache that expires after a minute of no
-     * reads, and [ReopenProjectAction.branchName] reports null rather than waiting for a cold entry
-     * to load. The platform republishes this topic once the load lands, which is the only signal
-     * that the branches are worth reading again.
-     */
-    fun onRecentProjectsChanged(parent: Disposable, onChange: () -> Unit) {
-        ApplicationManager.getApplication().messageBus.connect(parent).subscribe(
-            RecentProjectsManager.RECENT_PROJECTS_CHANGE_TOPIC,
-            object : RecentProjectsManager.RecentProjectsChange {
-                override fun change() = onChange()
-            },
-        )
-    }
-
-    /** [LinkedHashMap] so the platform's most-recently-used order survives the keying. */
-    private fun recentActionsByPath(): Map<String, ReopenProjectAction> {
-        return RecentProjectListActionProvider.getInstance()
-            .getActions()
-            .asSequence()
-            .filterIsInstance<ReopenProjectAction>()
-            .filter { it.projectPath.isNotBlank() }
-            .associateByTo(LinkedHashMap()) { normalize(it.projectPath) }
     }
 
     /**
@@ -176,9 +104,6 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         return this
     }
 
-    private fun pathOf(project: Project): String =
-        normalize(project.basePath ?: project.projectFilePath.orEmpty())
-
     private fun projectIcon(recentManager: RecentProjectsManagerBase, path: String, size: Int): Icon? {
         if (path.isBlank()) return null
         return runCatching { recentManager.getProjectIcon(path, true, size) }
@@ -186,14 +111,12 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
             .getOrNull()
     }
 
-    private fun normalize(path: String) = FileUtil.toSystemIndependentName(path)
-
     companion object {
         private const val ICON_SIZE = 20
 
         private const val MAX_RASTER_SCALE = 3
 
-        private const val MAX_CONCURRENT_ICON_LOADS = 4
+        private const val MAX_CONCURRENT_LOADS = 4
 
         private val ICON_TIMEOUT = 2.seconds
 
@@ -211,6 +134,6 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
         internal fun distinctIconPaths(paths: List<String>): List<String> =
             paths.filter { it.isNotBlank() }.distinct()
 
-        fun getInstance(): RecentProjectsService = service()
+        fun getInstance(): ProjectIconLoader = service()
     }
 }
