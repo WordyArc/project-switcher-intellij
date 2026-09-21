@@ -2,6 +2,7 @@
 
 package dev.ashenarx.project.switcher.intellij
 
+import androidx.compose.ui.awt.ComposePanel
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
@@ -10,6 +11,7 @@ import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.platform.util.coroutines.childScope
+import com.intellij.util.ui.UIUtil
 import dev.ashenarx.project.switcher.intellij.model.SwitchOutcome
 import dev.ashenarx.project.switcher.intellij.service.ProjectCatalog
 import dev.ashenarx.project.switcher.intellij.service.ProjectOpener
@@ -89,7 +91,7 @@ internal class ProjectSwitcherPopupService(private val coroutineScope: Coroutine
 
     private fun createPopup(panel: JComponent): JBPopup =
         JBPopupFactory.getInstance()
-            .createComponentPopupBuilder(panel, panel)
+            .createComponentPopupBuilder(panel, panel.composeFocusTarget())
             .setRequestFocus(true)
             .setFocusable(true)
             // Compose speed search clears its query on the first Escape and closes on the next one.
@@ -100,3 +102,6 @@ internal class ProjectSwitcherPopupService(private val coroutineScope: Coroutine
             .setResizable(false)
             .createPopup()
 }
+
+internal fun JComponent.composeFocusTarget(): JComponent =
+    UIUtil.findComponentOfType(this, ComposePanel::class.java) ?: this

@@ -2,6 +2,10 @@
 
 The topmost section is published as the plugin's change notes.
 
+## 1.1.2
+
+- The popup responds to the keyboard again on 2026.2.3, where <kbd>Up</kbd>, <kbd>Down</kbd>, typing and the <kbd>Alt</kbd>+<kbd>F2</kbd> toggle had stopped working.
+
 ## 1.1.1
 
 - Fix IntelliJ Platform binary compatibility regression.
