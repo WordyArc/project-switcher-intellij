@@ -122,7 +122,6 @@ internal fun ProjectRow(
     }
 }
 
-
 @Composable
 private fun NameAndPath(
     item: ProjectItem,
@@ -144,7 +143,6 @@ private fun NameAndPath(
                 text = presentableProjectPath(item.path),
                 color = secondary,
                 maxLines = 1,
-                // Both ends of a path carry meaning, so shorten it from the middle.
                 overflow = TextOverflow.MiddleEllipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )

@@ -23,7 +23,6 @@ import java.awt.Graphics
 import javax.swing.Icon
 import kotlin.time.Duration.Companion.seconds
 
-
 @TestApplication
 class ProjectSwitcherModelTest {
 
@@ -110,7 +109,6 @@ class ProjectSwitcherModelTest {
 
         assertEquals(listOf(middle.path), actions.forgotten)
         awaitRows(model) { rows -> rows.all.none { it.id == middle.id } }
-        // Without the removal being remembered this would fall back to the current project instead.
         assertEquals(last.id, model.selectedId, "expected the row below the one that was removed")
     }
 

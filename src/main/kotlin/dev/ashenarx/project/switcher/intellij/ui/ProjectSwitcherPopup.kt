@@ -50,7 +50,6 @@ internal fun ProjectSwitcherPopup(
     LaunchedEffect(model.projects) { entries.value = model.projects.all.map { it.searchText } }
     LaunchedEffect(searchState, entries) { searchState.attach(entries) }
 
-    // The overlay owns the text field, so the holder learns the query by mirroring it.
     LaunchedEffect(searchState) {
         snapshotFlow { searchState.searchText }.collect { model.query = it }
     }

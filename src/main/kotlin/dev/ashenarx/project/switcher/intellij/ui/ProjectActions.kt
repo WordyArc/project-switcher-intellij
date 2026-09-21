@@ -7,7 +7,6 @@ import dev.ashenarx.project.switcher.intellij.service.ProjectOpener
 import dev.ashenarx.project.switcher.intellij.service.RecentProjectsService
 import javax.swing.Icon
 
-
 internal interface ProjectActions {
     suspend fun collect(currentProject: Project?): ProjectList
 

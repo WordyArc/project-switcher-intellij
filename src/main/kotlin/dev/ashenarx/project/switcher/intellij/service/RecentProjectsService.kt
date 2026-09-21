@@ -38,7 +38,6 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.measureTime
 
-
 @Service(Service.Level.APP)
 class RecentProjectsService(val coroutineScope: CoroutineScope) {
 
@@ -112,7 +111,6 @@ class RecentProjectsService(val coroutineScope: CoroutineScope) {
             }
         }
     }
-
 
     suspend fun warmUp(): Boolean {
         if (!warmedUp.compareAndSet(false, true)) return false

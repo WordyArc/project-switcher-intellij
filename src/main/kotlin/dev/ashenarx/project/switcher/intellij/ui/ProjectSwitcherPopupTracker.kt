@@ -6,7 +6,6 @@ import com.intellij.openapi.ui.popup.JBPopupListener
 import com.intellij.openapi.ui.popup.LightweightWindowEvent
 import java.util.concurrent.atomic.AtomicReference
 
-/** The compare-and-set prevents an older popup's close event from unregistering a newer one. */
 @Service(Service.Level.APP)
 internal class ProjectSwitcherPopupTracker {
 
@@ -25,6 +24,7 @@ internal class ProjectSwitcherPopupTracker {
 
         popup.addListener(object : JBPopupListener {
             override fun onClosed(event: LightweightWindowEvent) {
+                // An older popup's close event must not unregister a newer one.
                 current.compareAndSet(popup, null)
             }
         })

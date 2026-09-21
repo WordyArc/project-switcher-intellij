@@ -14,7 +14,6 @@ import kotlin.io.path.exists
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.measureTime
 
-
 @TestApplication
 class IconLoadBenchmark {
 

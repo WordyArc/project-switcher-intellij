@@ -89,7 +89,6 @@ private fun activateSelection(
     }
 }
 
-
 internal fun KeyEvent.isCloseShortcut(mac: Boolean = SystemInfoRt.isMac): Boolean =
     key == Key.W && if (mac) isMetaPressed else isCtrlPressed
 

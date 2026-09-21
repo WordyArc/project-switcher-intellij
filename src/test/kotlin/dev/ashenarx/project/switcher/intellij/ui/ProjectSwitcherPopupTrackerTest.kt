@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Proxy
 
-
 class ProjectSwitcherPopupTrackerTest {
 
     private val tracker = ProjectSwitcherPopupTracker()

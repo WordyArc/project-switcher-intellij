@@ -10,7 +10,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.measureTimedValue
 
-
 internal class IconPassProbe(private val size: Int, private val icons: Int, private val loaders: Int) {
 
     private val fetchNanos = AtomicLong()

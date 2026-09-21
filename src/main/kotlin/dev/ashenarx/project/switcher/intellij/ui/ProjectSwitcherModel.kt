@@ -143,7 +143,6 @@ internal class ProjectSwitcherModel(
     }
 
     fun select(id: String?) {
-        // A deliberate move supersedes whatever a removal left behind.
         pendingSelection = null
         choice = id?.let { Choice(id = it, ranking = rows.all.map(ProjectItem::id), instead = preferred?.id) }
     }

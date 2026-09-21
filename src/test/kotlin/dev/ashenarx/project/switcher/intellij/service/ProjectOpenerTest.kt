@@ -35,7 +35,6 @@ import kotlin.io.path.createFile
 import kotlin.io.path.invariantSeparatorsPathString
 import kotlin.time.Duration.Companion.seconds
 
-
 @TestApplication
 class ProjectOpenerTest {
 

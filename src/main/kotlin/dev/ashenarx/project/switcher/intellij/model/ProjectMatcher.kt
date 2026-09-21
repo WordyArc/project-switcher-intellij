@@ -34,7 +34,6 @@ internal class ProjectMatcher(query: String) : SpeedSearchMatcher {
     }
 }
 
-/** Builds the wildcard pattern expected by the platform's speed-search matcher. */
 private fun String.toPatternOrNull(): String? {
     if (isBlank()) return null
 
