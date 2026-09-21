@@ -4,6 +4,7 @@ The topmost section is published as the plugin's change notes.
 
 ## 1.1.2
 
+- The characters that matched the search are highlighted in project names, and in paths where those are shown.
 - The popup responds to the keyboard again on 2026.2.3, where <kbd>Up</kbd>, <kbd>Down</kbd>, typing and the <kbd>Alt</kbd>+<kbd>F2</kbd> toggle had stopped working.
 
 ## 1.1.1

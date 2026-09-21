@@ -24,6 +24,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.ashenarx.project.switcher.intellij.ProjectSwitcherBundle
+import dev.ashenarx.project.switcher.intellij.model.Highlights
 import dev.ashenarx.project.switcher.intellij.model.OpenTarget
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
@@ -96,6 +97,7 @@ internal fun ProjectSwitcherPopup(
                 } else ProjectRows(
                     data = model.rows,
                     icons = model.icons,
+                    highlights = model.highlights,
                     selectedId = model.selectedId,
                     duplicateNames = model.projects.duplicateNames,
                     onResult = onResult,
@@ -109,6 +111,7 @@ internal fun ProjectSwitcherPopup(
 private fun ProjectRows(
     data: ProjectList,
     icons: Map<String, Icon>,
+    highlights: Map<String, Highlights>,
     selectedId: String?,
     duplicateNames: Set<String>,
     onResult: (SwitchOutcome) -> Unit,
@@ -123,14 +126,14 @@ private fun ProjectRows(
 
     // Reading each icon inside its item scope limits arrivals to one-row recompositions.
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-        projectRows(data.open, icons, selectedId, duplicateNames, onResult)
+        projectRows(data.open, icons, highlights, selectedId, duplicateNames, onResult)
 
         if (data.hasRecent) {
             item(key = "header:recent") {
                 SectionHeader(ProjectSwitcherBundle.message("popup.section.recent"))
             }
 
-            projectRows(data.recent, icons, selectedId, duplicateNames, onResult)
+            projectRows(data.recent, icons, highlights, selectedId, duplicateNames, onResult)
         }
     }
 }
@@ -138,6 +141,7 @@ private fun ProjectRows(
 private fun LazyListScope.projectRows(
     items: List<ProjectItem>,
     icons: Map<String, Icon>,
+    highlights: Map<String, Highlights>,
     selectedId: String?,
     duplicateNames: Set<String>,
     onResult: (SwitchOutcome) -> Unit,
@@ -146,6 +150,7 @@ private fun LazyListScope.projectRows(
         ProjectRow(
             item = item,
             icon = icons[item.path],
+            highlights = highlights[item.id] ?: Highlights.NONE,
             isSelected = item.id == selectedId,
             showPath = item.displayName in duplicateNames,
             onClick = { onResult(SwitchOutcome.of(item, OpenTarget.Ask)) },

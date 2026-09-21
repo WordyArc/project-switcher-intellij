@@ -26,6 +26,8 @@ internal class ProjectMatcher(query: String) : SpeedSearchMatcher {
         }
     }
 
+    fun rangesOrNull(text: String): List<IntRange>? = (matches(text) as? MatchResult.Match)?.ranges
+
     fun degreeOrNull(text: String): Int? {
         val matcher = delegate ?: return null
         val fragments = matcher.match(text) ?: return null

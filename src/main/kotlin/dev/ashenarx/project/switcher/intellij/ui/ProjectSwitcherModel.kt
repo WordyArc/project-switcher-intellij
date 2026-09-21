@@ -13,12 +13,15 @@ import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
+import dev.ashenarx.project.switcher.intellij.model.Highlights
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
 import dev.ashenarx.project.switcher.intellij.model.ProjectMatcher
 import dev.ashenarx.project.switcher.intellij.model.defaultSelection
 import dev.ashenarx.project.switcher.intellij.model.moveSelection
+import dev.ashenarx.project.switcher.intellij.model.searchText
 import dev.ashenarx.project.switcher.intellij.model.selectionAfterRemoving
+import dev.ashenarx.project.switcher.intellij.model.splitHighlights
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +62,14 @@ internal class ProjectSwitcherModel(
 
     val rows: ProjectList by derivedStateOf {
         if (query.isBlank()) projects else projects.rankedBy(matcher::degreeOrNull)
+    }
+
+    val highlights: Map<String, Highlights> by derivedStateOf {
+        if (query.isBlank()) {
+            emptyMap()
+        } else {
+            rows.all.associate { it.id to it.splitHighlights(matcher.rangesOrNull(it.searchText).orEmpty()) }
+        }
     }
 
     private val preferred: ProjectItem? by derivedStateOf {

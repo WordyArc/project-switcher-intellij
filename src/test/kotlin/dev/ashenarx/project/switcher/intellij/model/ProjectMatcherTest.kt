@@ -31,6 +31,13 @@ class ProjectMatcherTest {
     }
 
     @Test
+    fun `ranges cover exactly the matched characters`() {
+        val ranges = ProjectMatcher("min").rangesOrNull("Terminal")
+
+        assertEquals("min", ranges?.joinToString("") { "Terminal".substring(it) })
+    }
+
+    @Test
     fun `ranks a word-start match above one buried mid-word`() {
         val matcher = ProjectMatcher("proj")
 

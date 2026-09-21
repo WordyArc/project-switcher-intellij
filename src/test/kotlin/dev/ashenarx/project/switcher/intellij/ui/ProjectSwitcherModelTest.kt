@@ -77,6 +77,20 @@ class ProjectSwitcherModelTest {
     }
 
     @Test
+    fun `highlights follow the query and vanish with it`() = timeoutRunBlocking {
+        val model = modelOver(items)
+
+        model.query = "first"
+
+        val name = checkNotNull(model.highlights[firstRow.id]).name
+        assertEquals("first", name.joinToString("") { firstRow.displayName.substring(it) })
+
+        model.query = ""
+
+        assertEquals(emptyMap<String, Any>(), model.highlights)
+    }
+
+    @Test
     fun `a top match still wins after the user moved the selection by hand`() = timeoutRunBlocking {
         val model = modelOver(items)
         model.select(last.id)
