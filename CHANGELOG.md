@@ -1,27 +1,27 @@
 # Changelog
 
-The topmost section is published as the plugin's change notes.
+The plugin's published change notes come from the first section below.
 
-## 1.*.*
+## 1.2.0
 
-- The plugin installs on 2026.3 EAP, where reopening a recent project used to be rejected as incompatible.
-- <kbd>Enter</kbd> opens the project matching everything typed so far, even when the keys arrive faster than the list redraws.
-- A search field above the list can take the place of the speed search; it is turned on in <b>Settings | Tools | Project Switcher</b>.
-- Open projects are listed from the most recently used, and the previous project is selected when the popup opens, so <kbd>Alt</kbd>+<kbd>F2</kbd> followed by <kbd>Enter</kbd> switches back to it.
-- <kbd>Cmd</kbd>+<kbd>W</kbd> on macOS and <kbd>Ctrl</kbd>+<kbd>W</kbd> elsewhere closes the current project even while other projects are open, and hands the focus to the one used before it.
-- Moving the selection scrolls the list only when the selected row would leave the view, and <kbd>Page Up</kbd>, <kbd>Page Down</kbd>, <kbd>Home</kbd> and <kbd>End</kbd> jump through a long list, which now has a scrollbar.
-- Closing or removing a project from the popup no longer flashes the loading message, drops the icons or scrolls the list back to the top.
-- Search no longer matches the user home directory in project paths, ranks matches in the project name above matches in its location, and shows the location of a project that matched only there.
-- The bottom of the popup can show the location of the selected project and the keys that act on it, each turned on separately in <b>Settings | Tools | Project Switcher</b>.
-- <kbd>Delete</kbd> and <kbd>Backspace</kbd> can close and remove projects instead of <kbd>Cmd</kbd>+<kbd>W</kbd> and <kbd>Ctrl</kbd>+<kbd>W</kbd>, chosen in <b>Settings | Tools | Project Switcher</b>; they act only on an empty search, wait for the selection to move after the search is erased, and close one project per press.
-- <kbd>Shift</kbd>+click and <kbd>Ctrl</kbd>+click open a recent project in the current or a new window, the same as <kbd>Shift</kbd>+<kbd>Enter</kbd> and <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.
-- Pressing the Switch Project shortcut again closes the popup whatever shortcut the keymap assigns to it, not only <kbd>Alt</kbd>+<kbd>F2</kbd>.
-- The popup opens with the last known project list and sharp icons in its first frame and refreshes them in the background.
-- Project icons load all at once instead of four at a time, and in Power Save Mode the popup no longer waits for icons that the IDE does not compute.
-- Recent projects whose directory no longer exists are dimmed.
-- Recent projects on WSL and other non-local file systems open through the IDE's own reopen action, which prepares their environment first.
-- When the IDE cannot build its recent project list, the popup still lists the open projects instead of showing an error.
-- The plugin no longer loads on a remote development host, where its popup cannot be shown, and hides its action in JetBrains Client.
+- Installation works on 2026.3 EAP after a compatibility issue with reopening recent projects previously prevented it.
+- Even when typing outpaces list updates, <kbd>Enter</kbd> opens the project that matches the full query entered so far.
+- <b>Settings | Tools | Project Switcher</b> offers a search field above the list as an alternative to speed search.
+- The popup sorts open projects by last use, newest first, and preselects the previous project so that <kbd>Alt</kbd>+<kbd>F2</kbd>, then <kbd>Enter</kbd>, takes you back to it.
+- Closing the current project with <kbd>Cmd</kbd>+<kbd>W</kbd> on macOS or <kbd>Ctrl</kbd>+<kbd>W</kbd> on other systems works with other projects open and returns focus to the previously used project.
+- Long lists have a scrollbar and support <kbd>Page Up</kbd>, <kbd>Page Down</kbd>, <kbd>Home</kbd> and <kbd>End</kbd>, while selection changes scroll only far enough to keep the selected row visible.
+- After a project is closed or removed from the popup, the list keeps its icons and scroll position without briefly showing a loading message.
+- Search ignores the home-directory portion of paths, gives project-name matches priority over location matches, and displays the location when it is the sole match.
+- Separate options in <b>Settings | Tools | Project Switcher</b> show the selected project's location and available shortcuts below the list.
+- Choosing <kbd>Delete</kbd> and <kbd>Backspace</kbd> in <b>Settings | Tools | Project Switcher</b> replaces <kbd>Cmd</kbd>+<kbd>W</kbd> and <kbd>Ctrl</kbd>+<kbd>W</kbd> for closing or removing projects, with one project closed per press, an empty query required, and a selection change required after erasing a query.
+- Recent projects open in the current window with <kbd>Shift</kbd>+click or in a new window with <kbd>Ctrl</kbd>+click, matching <kbd>Shift</kbd>+<kbd>Enter</kbd> and <kbd>Ctrl</kbd>+<kbd>Enter</kbd> respectively.
+- Any keymap shortcut assigned to Switch Project toggles the popup closed on a second press, including shortcuts other than <kbd>Alt</kbd>+<kbd>F2</kbd>.
+- From its first frame, the popup displays the cached project list with sharp icons, then updates both in the background.
+- All project icons load concurrently rather than in groups of four, and Power Save Mode skips the wait for icons the IDE does not generate.
+- A dimmed recent-project entry indicates that its directory is missing.
+- To open a recent project on WSL or another non-local file system, the plugin uses the IDE's reopen action so the environment is prepared first.
+- Open projects remain available in the popup if the IDE fails to assemble the recent-project list, rather than being replaced by an error.
+- Remote development hosts no longer load the plugin because they cannot display its popup, and JetBrains Client no longer shows its action.
 
 ## 1.1.2
 

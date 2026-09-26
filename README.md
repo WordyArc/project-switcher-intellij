@@ -5,64 +5,66 @@
 <h1 align="center">Project Switcher</h1>
 
 <p align="center">
-  Switch between open and recent IntelliJ Platform projects without leaving the keyboard.
+  Use the keyboard to move between your open and recent IntelliJ Platform projects.
 </p>
 
 ---
 
-Project Switcher is an IntelliJ Platform plugin for quickly switching between open and recent projects.
+Project Switcher brings your open and recent projects into one popup in IntelliJ Platform IDEs.
 
-Press <kbd>Alt</kbd>+<kbd>F2</kbd> and type to filter projects by name or location. Search tolerates common typos and
-supports keyboard-layout correction. Open projects are listed from the most recently used, and the previous project is
-selected, so <kbd>Alt</kbd>+<kbd>F2</kbd> then <kbd>Enter</kbd> switches back to it. Open projects are focused
-immediately; recent projects follow the IDE's **Open project in** setting.
+To return to your previous project, press <kbd>Alt</kbd>+<kbd>F2</kbd>, then <kbd>Enter</kbd>. The popup selects it
+for you and orders open projects by their last use, newest first.
+
+Looking for another project? Start typing its name or location. Search handles common typos and can correct the
+keyboard layout. Choosing an open project brings its window into focus immediately. For recent projects, the IDE's
+**Open project in** setting determines where they open.
 
 ## Screenshots
 
-![The popup listing open projects above the recent ones](docs/images/popup.png)
+![Open projects followed by recent projects in the popup](docs/images/popup.png)
 
-![Typing narrows the list to the matching projects](docs/images/speed-search.png)
+![Project list filtered by the typed search](docs/images/speed-search.png)
 
 ## Shortcuts
 
 | Key                                                     | Action                                                  |
 |---------------------------------------------------------|---------------------------------------------------------|
 | <kbd>Alt</kbd>+<kbd>F2</kbd>                            | Open or close Project Switcher                          |
-| Type                                                    | Filter projects by name or location                     |
-| <kbd>Up</kbd> / <kbd>Down</kbd>                         | Move the selection                                      |
-| <kbd>Page Up</kbd> / <kbd>Page Down</kbd>               | Move the selection a page at a time                     |
-| <kbd>Home</kbd> / <kbd>End</kbd>                        | Select the first or the last project                    |
-| <kbd>Enter</kbd> or click                               | Open the selected project using the IDE setting         |
+| Type                                                    | Search project names and locations                      |
+| <kbd>Up</kbd> / <kbd>Down</kbd>                         | Select the previous or next row                         |
+| <kbd>Page Up</kbd> / <kbd>Page Down</kbd>               | Go back or forward one page                             |
+| <kbd>Home</kbd> / <kbd>End</kbd>                        | Jump to the first or last project                       |
+| <kbd>Enter</kbd> or click                               | Open the selection according to the IDE setting         |
 | <kbd>Shift</kbd>+<kbd>Enter</kbd> or <kbd>Shift</kbd>+click | Open a recent project in the current window         |
 | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+click   | Open a recent project in a new window               |
-| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd>             | Close an open project or remove a recent project, or with <kbd>Delete</kbd> (see [Settings](#settings)) |
-| <kbd>Esc</kbd>                                          | Clear the search, then close the popup                  |
+| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd>             | Close an open project or remove a recent entry; <kbd>Delete</kbd> is an option in [Settings](#settings) |
+| <kbd>Esc</kbd>                                          | Clear the query; with no query, dismiss the popup        |
 
-The open-in-current-window and open-in-new-window modifiers apply only to recent projects. Selecting an already open
-project focuses its window. Closing the current project hands the focus to the project used before it.
+Only recent projects use the current-window and new-window modifiers. An open project always receives focus in its
+existing window. If you close the current project, focus returns to the one you used before it.
 
 ## Settings
 
-**Settings | Tools | Project Switcher** changes how the popup looks and behaves:
+Configure the popup in **Settings | Tools | Project Switcher**:
 
-- **Show a search field above the list** puts a search field in place of the title. Without it, typing opens a speed
-  search in the top left corner, as in Recent Files.
-- **Show the location of the selected project at the bottom** adds the selected project's path under the list.
-- **Show the shortcuts for the selected project at the bottom** lists the keys that act on the selection.
-- **Close or remove projects with** picks the keys that close an open project or remove a recent one:
-  <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd>, or <kbd>Delete</kbd> and <kbd>Backspace</kbd> instead. Delete and Backspace act
-  only while the search is empty: after erasing the search they close nothing until the selection moves, and a key held
-  down closes only one project.
+- **Show a search field above the list** replaces the title with a search input. When disabled, typing brings up
+  speed search in the upper-left corner, like in Recent Files.
+- **Show the location of the selected project at the bottom** displays its path below the project list.
+- **Show the shortcuts for the selected project at the bottom** displays the keys available for that project.
+- **Close or remove projects with** lets you choose between <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd> and
+  <kbd>Delete</kbd>/<kbd>Backspace</kbd> for closing open projects or removing recent entries. Delete and Backspace
+  require an empty search. If you use them to erase a query, you must move the selection before they can close a
+  project. Holding either key down closes just one project.
 
 ## Change the Shortcut
 
-Open **Settings | Keymap**, search for **Switch Project**, and assign the shortcut you prefer. The action is also
-available from **Tools | Switch Project**.
+Find **Switch Project** in **Settings | Keymap** to assign your own shortcut. You can also run it from
+**Tools | Switch Project**.
 
 ## Requirements
 
-- Any IntelliJ Platform IDE from the 2026.2 branch — IntelliJ IDEA, PyCharm, WebStorm, GoLand, Rider and the rest. The
-  plugin depends only on platform-level modules.
+- An IntelliJ Platform IDE on the 2026.2 branch, including IntelliJ IDEA, PyCharm, WebStorm, GoLand and Rider.
+  Only platform-level modules are required, so other IDEs on that branch are supported too.
 
 ## License
 

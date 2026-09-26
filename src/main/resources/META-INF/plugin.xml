@@ -13,34 +13,34 @@
         <br/>
         <b>Shortcuts</b>
         <ul>
-            <li><kbd>Up</kbd> / <kbd>Down</kbd> — move the selection</li>
-            <li><kbd>Page Up</kbd> / <kbd>Page Down</kbd>, <kbd>Home</kbd> / <kbd>End</kbd> — jump through a
-                long list</li>
-            <li><kbd>Enter</kbd> or a click — open the selected project following the IDE's
+            <li><kbd>Up</kbd> / <kbd>Down</kbd> — select the previous or next row</li>
+            <li><kbd>Page Up</kbd> / <kbd>Page Down</kbd>, <kbd>Home</kbd> / <kbd>End</kbd> — navigate
+                longer lists</li>
+            <li><kbd>Enter</kbd> or a click — open the selection according to the IDE's
                 <b>Open project in</b> setting</li>
             <li><kbd>Shift+Enter</kbd> or <kbd>Shift</kbd>+click — open a recent project in the current
                 window</li>
             <li><kbd>Ctrl+Enter</kbd> or <kbd>Ctrl</kbd>+click — open a recent project in a new window</li>
             <li><kbd>Cmd+W</kbd> on macOS, <kbd>Ctrl+W</kbd> elsewhere — close an open project or remove a
                 recent one</li>
-            <li><kbd>Esc</kbd> — clear the search, then close the popup</li>
+            <li><kbd>Esc</kbd> — clear the query; with no query, dismiss the popup</li>
         </ul>
-        The window modifiers apply only to recent projects; selecting an already open project
-        focuses its window.<br/>
+        An open project always receives focus in its existing window. The current-window and
+        new-window modifiers affect only recent projects.<br/>
         <br/>
-        Under <b>Settings | Tools | Project Switcher</b> the popup can show a search field above the list
-        instead of the speed search, and the location of the selected project and the keys that act on it
-        at the bottom. Projects can also be closed with <kbd>Delete</kbd> and <kbd>Backspace</kbd> instead
-        of <kbd>Cmd+W</kbd>.<br/>
+        In <b>Settings | Tools | Project Switcher</b>, you can replace speed search with a search field
+        above the list or display the selected project's location and available shortcuts below it.
+        You can also choose <kbd>Delete</kbd> and <kbd>Backspace</kbd> in place of <kbd>Cmd+W</kbd>
+        for closing projects.<br/>
         <br/>
-        The shortcut can be changed under <b>Settings | Keymap | Switch Project</b>, and the action
-        is also available from <b>Tools | Switch Project</b>.<br/>
+        Assign your own shortcut in <b>Settings | Keymap | Switch Project</b> or run the action from
+        <b>Tools | Switch Project</b>.<br/>
         <br/>
         <img src="https://raw.githubusercontent.com/WordyArc/project-switcher-intellij/main/docs/images/popup.png"
-             alt="The popup listing open projects above the recent ones" width="640"/><br/>
+             alt="Open projects followed by recent projects in the popup" width="640"/><br/>
         <br/>
         <img src="https://raw.githubusercontent.com/WordyArc/project-switcher-intellij/main/docs/images/speed-search.png"
-             alt="Typing narrows the list to the matching projects" width="640"/>
+             alt="Project list filtered by the typed search" width="640"/>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
