@@ -4,6 +4,7 @@ import com.intellij.ide.DataManager
 import com.intellij.ide.RecentProjectsManager
 import com.intellij.ide.RecentProjectsManagerBase
 import com.intellij.ide.ReopenProjectAction
+import com.intellij.ide.impl.OpenProjectTask
 import com.intellij.ide.impl.ProjectUtil
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -21,6 +22,7 @@ import com.intellij.openapi.diagnostic.getOrHandleException
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.project.ex.ProjectManagerEx
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.openapi.wm.impl.welcomeScreen.WelcomeFrame
 import dev.ashenarx.project.switcher.intellij.ProjectSwitcherBundle
@@ -43,16 +45,17 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
         ProjectUtil.focusProjectWindow(project, true)
     }
 
-    fun close(item: ProjectItem.Open) {
-        val project = openProjectOf(item) ?: return
+    fun close(item: ProjectItem.Open): Boolean {
+        val project = openProjectOf(item) ?: return false
 
         WindowManager.getInstance().updateDefaultFrameInfoOnProjectClose(project)
         val closed = WriteIntentReadAction.compute { ProjectManager.getInstance().closeAndDispose(project) }
-        if (!closed) return
+        if (!closed) return false
 
         // closeAndDispose cannot distinguish this from an application exit, so do its UI cleanup.
         RecentProjectsManager.getInstance().updateLastProjectPath()
         WelcomeFrame.showIfNoProjectOpened()
+        return true
     }
 
     private fun openProjectOf(item: ProjectItem.Open): Project? =
@@ -67,12 +70,12 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
             runCatching {
                 val file = Path.of(item.path).normalize()
 
-                if (withContext(Dispatchers.IO) { Files.notExists(file) }) {
+                if (!item.path.isLocalProjectPath() || withContext(Dispatchers.IO) { Files.notExists(file) }) {
                     // For a stale entry the action is still worth it: its dialog offers to drop the entry.
                     val handled = withContext(Dispatchers.EDT + modality.asContextElement()) {
                         performReopenAction(item, contextProject)
                     }
-                    if (!handled) notifyOpenFailure(item, contextProject, modality)
+                    if (!handled) notifyOpenFailure(item.displayName, contextProject, modality)
                     return@runCatching
                 }
 
@@ -82,13 +85,21 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
                     target == OpenTarget.CurrentWindow,
                 )
 
-                val opened = RecentProjectsManagerBase.getInstanceEx().openProject(file, options)
-                if (opened == null) notifyOpenFailure(item, contextProject, modality)
+                val opened = openProject(file, options)
+                if (opened == null) notifyOpenFailure(item.displayName, contextProject, modality)
             }.getOrHandleException { error ->
                 thisLogger().warn("Cannot open project '${item.displayName}'", error)
-                notifyOpenFailure(item, contextProject, modality)
+                notifyOpenFailure(item.displayName, contextProject, modality)
             }
         }
+    }
+
+    private suspend fun openProject(file: Path, options: OpenProjectTask): Project? {
+        val recentManager = RecentProjectsManager.getInstance() as? RecentProjectsManagerBase
+        if (recentManager != null) return recentManager.openProject(file, options)
+
+        thisLogger().debug("RecentProjectsManager is not a RecentProjectsManagerBase — opening without its metadata")
+        return ProjectManagerEx.getInstanceEx().openProjectAsync(file, options)
     }
 
     private fun performReopenAction(item: ProjectItem.Recent, contextProject: Project?): Boolean {
@@ -110,7 +121,7 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
     }
 
     private suspend fun notifyOpenFailure(
-        item: ProjectItem.Recent,
+        displayName: String,
         contextProject: Project?,
         modality: ModalityState,
     ) {
@@ -119,7 +130,7 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
                 .getNotificationGroup(NOTIFICATION_GROUP_ID)
                 .createNotification(
                     ProjectSwitcherBundle.message("notification.open.failed.title"),
-                    ProjectSwitcherBundle.message("notification.open.failed.content", item.displayName),
+                    ProjectSwitcherBundle.message("notification.open.failed.content", displayName),
                     NotificationType.ERROR,
                 )
                 .notify(contextProject?.takeUnless { it.isDisposed })
@@ -127,7 +138,7 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
     }
 
     private fun findReopenAction(path: String): ReopenProjectAction? =
-        recentProjectActions().firstOrNull { it.normalizedPath == path }
+        recentProjectActions().filterIsInstance<ReopenProjectAction>().firstOrNull { it.normalizedPath == path }
 
     private fun contextComponent(contextProject: Project?): Component? {
         val frame = contextProject?.takeIf { !it.isDisposed }
@@ -137,7 +148,7 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
     }
 
     companion object {
-        private const val NOTIFICATION_GROUP_ID = "Project Switcher"
+        internal const val NOTIFICATION_GROUP_ID = "Project Switcher"
 
         fun getInstance(): ProjectOpener = service()
     }

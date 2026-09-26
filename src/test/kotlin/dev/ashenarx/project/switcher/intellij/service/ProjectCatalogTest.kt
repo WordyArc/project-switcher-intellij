@@ -12,12 +12,16 @@ import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.TestDisposable
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
+import com.intellij.util.SystemProperties
+import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.io.path.createDirectories
+import kotlin.io.path.invariantSeparatorsPathString
 
 @TestApplication
 class ProjectCatalogTest {
@@ -31,6 +35,8 @@ class ProjectCatalogTest {
             ExtensionPointName<RecentProjectsBranchesProvider>("com.intellij.recentProjectsBranchesProvider")
     }
 
+    private val tempDir = tempPathFixture()
+
     private val catalog get() = ProjectCatalog.getInstance()
 
     @BeforeEach
@@ -40,7 +46,22 @@ class ProjectCatalogTest {
     }
 
     @Test
-    fun `open projects are listed and sorted by name, ignoring case`() = timeoutRunBlocking {
+    fun `open projects are listed from the most recently activated`() = timeoutRunBlocking {
+        val manager = RecentProjectsManagerBase.getInstanceEx()
+        manager.setActivationTimestamp(zebra.get(), 1_000)
+        manager.setActivationTimestamp(apple.get(), 2_000)
+
+        val names = catalog.collect(currentProject = null).open.map { it.displayName }
+
+        assertEquals(
+            listOf("apple", "Zebra"),
+            names.filter { it == "apple" || it == "Zebra" },
+            "the project used last has to come first so that switching back is one keystroke",
+        )
+    }
+
+    @Test
+    fun `open projects nobody has activated yet are listed by name, ignoring case`() = timeoutRunBlocking {
         val names = catalog.collect(currentProject = null).open.map { it.displayName }
 
         assertEquals(
@@ -51,12 +72,17 @@ class ProjectCatalogTest {
     }
 
     @Test
-    fun `the project the popup was invoked from is the only one marked current`() = timeoutRunBlocking {
-        val open = catalog.collect(currentProject = apple.get()).open
+    fun `the project the popup was invoked from is listed first and is the only one marked current`() =
+        timeoutRunBlocking {
+            val manager = RecentProjectsManagerBase.getInstanceEx()
+            manager.setActivationTimestamp(zebra.get(), 2_000)
+            manager.setActivationTimestamp(apple.get(), 1_000)
 
-        assertEquals(listOf("apple"), open.filter { it.isCurrent }.map { it.displayName })
-        assertTrue(open.any { it.displayName == "Zebra" && !it.isCurrent }, "expected Zebra listed but not current")
-    }
+            val open = catalog.collect(currentProject = apple.get()).open
+
+            assertEquals("apple", open.first().displayName)
+            assertEquals(listOf("apple"), open.filter { it.isCurrent }.map { it.displayName })
+        }
 
     @Test
     fun `an open project carries the location hash the opener matches on`() = timeoutRunBlocking {
@@ -101,6 +127,17 @@ class ProjectCatalogTest {
     }
 
     @Test
+    fun `a location under the user home is shown from the tilde`() = timeoutRunBlocking {
+        val home = SystemProperties.getUserHome().toProjectPath()
+        seedRecent("$home/work/solo", name = "solo")
+
+        val item = catalog.collect(currentProject = null).recent.single()
+
+        assertEquals(presentableProjectPath("$home/work/solo"), item.location)
+        assertTrue(item.location.startsWith("~"), "the home directory must not be part of what the search sees")
+    }
+
+    @Test
     fun `the branch reported for a path reaches both sections`(@TestDisposable disposable: Disposable) =
         timeoutRunBlocking {
             val recentPath = seedRecent(name = "detached")
@@ -128,6 +165,19 @@ class ProjectCatalogTest {
     }
 
     @Test
+    fun `when the recent list cannot be built the open projects are still listed`(
+        @TestDisposable disposable: Disposable,
+    ) = timeoutRunBlocking {
+        seedRecent(name = "unreadable")
+        ExtensionTestUtil.maskExtensions(branchProviderEp, listOf(ThrowingBranches()), disposable, fireEvents = false)
+
+        val list = catalog.collect(currentProject = null)
+
+        assertTrue(list.open.any { it.displayName == "apple" }, "a broken recent list must not hide the open projects")
+        assertEquals(emptyList<ProjectItem.Recent>(), list.recent)
+    }
+
+    @Test
     fun `forgetting a project drops it from the next collect`() = timeoutRunBlocking {
         val kept = seedRecent(name = "kept")
         val dropped = seedRecent(name = "dropped")
@@ -151,6 +201,28 @@ class ProjectCatalogTest {
         assertTrue(list.open.any { it.displayName == "apple" }, "the project is still open, so it stays listed")
     }
 
+    @Test
+    fun `the snapshot is the last collected list, marked for the project that asks`() = timeoutRunBlocking {
+        val manager = RecentProjectsManagerBase.getInstanceEx()
+        manager.setActivationTimestamp(zebra.get(), 2_000)
+        manager.setActivationTimestamp(apple.get(), 1_000)
+        val collected = catalog.collect(currentProject = zebra.get())
+
+        val snapshot = checkNotNull(catalog.snapshot(apple.get())) { "a collected list must be kept for the next popup" }
+
+        assertEquals(collected.all.map { it.id }.toSet(), snapshot.all.map { it.id }.toSet())
+        assertEquals("apple", snapshot.open.first().displayName, "the asking project moves to the top")
+        assertEquals(listOf("apple"), snapshot.open.filter { it.isCurrent }.map { it.displayName })
+    }
+
+    @Test
+    fun `recent projects whose directory is gone are reported, the others are not`() = timeoutRunBlocking {
+        val present = tempDir.get().resolve("present").createDirectories().invariantSeparatorsPathString
+        val gone = tempDir.get().resolve("gone").invariantSeparatorsPathString
+
+        assertEquals(setOf(gone), catalog.missing(listOf(present, gone)))
+    }
+
     // Seed oldest first: the platform hands recents back in reverse.
     private fun seedRecent(path: String? = null, name: String): String {
         val resolved = path ?: "/tmp/project-switcher-test/$name"
@@ -170,5 +242,10 @@ class ProjectCatalogTest {
 
     private class FakeBranches(private val branches: Map<String, String>) : RecentProjectsBranchesProvider {
         override fun getCurrentBranch(projectPath: String, nameIsDistinct: Boolean): String? = branches[projectPath]
+    }
+
+    private class ThrowingBranches : RecentProjectsBranchesProvider {
+        override fun getCurrentBranch(projectPath: String, nameIsDistinct: Boolean): String? =
+            throw IllegalStateException("branch cache is broken")
     }
 }

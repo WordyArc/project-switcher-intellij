@@ -1,6 +1,8 @@
 package dev.ashenarx.project.switcher.intellij.model
 
-internal data class Highlights(val name: List<IntRange>, val path: List<IntRange>) {
+internal data class Highlights(val name: List<IntRange>, val location: List<IntRange>) {
+
+    val isNameOnly: Boolean get() = location.isEmpty()
 
     companion object {
         val NONE = Highlights(emptyList(), emptyList())
@@ -8,11 +10,13 @@ internal data class Highlights(val name: List<IntRange>, val path: List<IntRange
 }
 
 internal fun ProjectItem.splitHighlights(ranges: List<IntRange>): Highlights {
-    val pathStart = displayName.length + 1
+    val locationStart = displayName.length + 1
 
     return Highlights(
         name = ranges.clampTo(displayName.indices),
-        path = ranges.clampTo(pathStart until pathStart + path.length).map { it.first - pathStart..it.last - pathStart },
+        location = ranges
+            .clampTo(locationStart until locationStart + location.length)
+            .map { it.first - locationStart..it.last - locationStart },
     )
 }
 

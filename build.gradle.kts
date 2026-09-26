@@ -41,7 +41,7 @@ dependencies {
 }
 
 tasks.compileTestKotlin {
-    compilerOptions.optIn.add("androidx.compose.ui.InternalComposeUiApi")
+    compilerOptions.optIn.addAll("androidx.compose.ui.InternalComposeUiApi", "androidx.compose.ui.ExperimentalComposeUiApi")
 }
 
 tasks.test {

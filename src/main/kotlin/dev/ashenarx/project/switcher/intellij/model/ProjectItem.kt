@@ -4,6 +4,7 @@ sealed interface ProjectItem {
     val id: String
     val displayName: String
     val path: String
+    val location: String
     val branch: String?
 
     val isCurrent: Boolean get() = false
@@ -12,6 +13,7 @@ sealed interface ProjectItem {
         val locationHash: String,
         override val displayName: String,
         override val path: String,
+        override val location: String,
         override val branch: String?,
         override val isCurrent: Boolean,
     ) : ProjectItem {
@@ -21,6 +23,7 @@ sealed interface ProjectItem {
     data class Recent(
         override val displayName: String,
         override val path: String,
+        override val location: String,
         override val branch: String?,
     ) : ProjectItem {
         override val id: String get() = "recent:$path"

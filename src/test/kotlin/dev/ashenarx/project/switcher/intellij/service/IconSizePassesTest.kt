@@ -1,6 +1,7 @@
 package dev.ashenarx.project.switcher.intellij.service
 
-import dev.ashenarx.project.switcher.intellij.service.ProjectIconLoader.Companion.distinctIconPaths
+import dev.ashenarx.project.switcher.intellij.model.ProjectItem
+import dev.ashenarx.project.switcher.intellij.service.ProjectIconLoader.Companion.distinctIconItems
 import dev.ashenarx.project.switcher.intellij.service.ProjectIconLoader.Companion.iconSizePasses
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -9,10 +10,17 @@ import org.junit.jupiter.api.Test
 class IconSizePassesTest {
 
     @Test
-    fun `icon paths are non-blank and unique in encounter order`() {
-        val paths = distinctIconPaths(listOf("/first", "", "/second", "/first", "   ", "/second"))
+    fun `icons are asked for once per non-blank key in encounter order`() {
+        val items = listOf("/first", "", "/second", "/first", "   ", "/second").map(::recent)
 
-        assertEquals(listOf("/first", "/second"), paths)
+        assertEquals(listOf("/first", "/second"), distinctIconItems(items).map { it.path })
+    }
+
+    @Test
+    fun `an open project and its recent entry share one icon`() {
+        val open = ProjectItem.Open("hash", "first", "/first", "~/first", branch = null, isCurrent = false)
+
+        assertEquals(listOf(open), distinctIconItems(listOf(open, recent("/first"))))
     }
 
     @Test
@@ -52,4 +60,6 @@ class IconSizePassesTest {
         assertEquals(listOf(20), iconSizePasses(0f))
         assertEquals(listOf(20), iconSizePasses(-1f))
     }
+
+    private fun recent(path: String) = ProjectItem.Recent(displayName = path, path = path, location = path, branch = null)
 }

@@ -12,9 +12,11 @@
 
 Project Switcher is an IntelliJ Platform plugin for quickly switching between open and recent projects.
 
-Press <kbd>Alt</kbd>+<kbd>F2</kbd> and type to filter projects by name or path. Search tolerates common typos and
-supports keyboard-layout correction. Open projects are focused immediately; recent projects follow the IDE's **Open
-project in** setting.
+Press <kbd>Alt</kbd>+<kbd>F2</kbd> and type to filter projects by name or location. Search tolerates common typos and
+supports keyboard-layout correction. Open projects are listed from the most recently used, and the previous project is
+selected, so <kbd>Alt</kbd>+<kbd>F2</kbd> then <kbd>Enter</kbd> switches back to it. Open projects are focused
+immediately; recent projects follow the IDE's **Open project in** setting. The footer shows the location of the selected
+project and the keys that act on it.
 
 ## Screenshots
 
@@ -24,22 +26,21 @@ project in** setting.
 
 ## Shortcuts
 
-| Key                                      | Action                                                                          |
-|------------------------------------------|---------------------------------------------------------------------------------|
-| <kbd>Alt</kbd>+<kbd>F2</kbd>             | Open or close Project Switcher                                                  |
-| Type                                     | Filter projects by name or path                                                 |
-| <kbd>Up</kbd> / <kbd>Down</kbd>          | Move the selection                                                              |
-| <kbd>Enter</kbd>                         | Open the selected project using the IDE setting                                 |
-| <kbd>Shift</kbd>+<kbd>Enter</kbd>        | Open a recent project in the current window                                     |
-| <kbd>Ctrl</kbd>+<kbd>Enter</kbd>         | Open a recent project in a new window                                           |
-| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd> | Close an open project or remove a recent project                             |
-| <kbd>Esc</kbd>                           | Clear the search, then close the popup                                          |
+| Key                                                     | Action                                                  |
+|---------------------------------------------------------|---------------------------------------------------------|
+| <kbd>Alt</kbd>+<kbd>F2</kbd>                            | Open or close Project Switcher                          |
+| Type                                                    | Filter projects by name or location                     |
+| <kbd>Up</kbd> / <kbd>Down</kbd>                         | Move the selection                                      |
+| <kbd>Page Up</kbd> / <kbd>Page Down</kbd>               | Move the selection a page at a time                     |
+| <kbd>Home</kbd> / <kbd>End</kbd>                        | Select the first or the last project                    |
+| <kbd>Enter</kbd> or click                               | Open the selected project using the IDE setting         |
+| <kbd>Shift</kbd>+<kbd>Enter</kbd> or <kbd>Shift</kbd>+click | Open a recent project in the current window         |
+| <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+click   | Open a recent project in a new window               |
+| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd>             | Close an open project or remove a recent project        |
+| <kbd>Esc</kbd>                                          | Clear the search, then close the popup                  |
 
 The open-in-current-window and open-in-new-window modifiers apply only to recent projects. Selecting an already open
-project focuses its window.
-
-To prevent accidentally leaving no project to switch to, the current project can be closed from the popup only when it
-is the only open project.
+project focuses its window. Closing the current project hands the focus to the project used before it.
 
 ## Change the Shortcut
 

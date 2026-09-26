@@ -119,8 +119,9 @@ class ProjectOpenerTest {
         val project = openProject("closable")
         val item = openItem(project)
 
-        withContext(Dispatchers.EDT) { opener.close(item) }
+        val closed = withContext(Dispatchers.EDT) { opener.close(item) }
 
+        assertTrue(closed, "the caller focuses the next project only after a close that happened")
         assertTrue(project.isDisposed, "closeAndDispose must have run")
         assertFalse(ProjectManagerEx.getOpenProjects().contains(project))
     }
@@ -141,8 +142,9 @@ class ProjectOpenerTest {
             )
 
             try {
-                withContext(Dispatchers.EDT) { opener.close(openItem(project)) }
+                val closed = withContext(Dispatchers.EDT) { opener.close(openItem(project)) }
 
+                assertFalse(closed, "a refused close must not hand the focus to another project")
                 assertFalse(project.isDisposed, "the veto must be honoured")
                 // updateLastProjectPath would have flipped this on for a project that is still open.
                 assertFalse(info.opened, "cleanup must not run when the close was refused")
@@ -182,6 +184,7 @@ class ProjectOpenerTest {
     private fun recentItem(path: Path, name: String) = ProjectItem.Recent(
         displayName = name,
         path = path.invariantSeparatorsPathString,
+        location = path.invariantSeparatorsPathString,
         branch = null,
     )
 
@@ -189,6 +192,7 @@ class ProjectOpenerTest {
         locationHash = project.locationHash,
         displayName = project.name,
         path = project.basePath.orEmpty(),
+        location = project.basePath.orEmpty(),
         branch = null,
         isCurrent = false,
     )

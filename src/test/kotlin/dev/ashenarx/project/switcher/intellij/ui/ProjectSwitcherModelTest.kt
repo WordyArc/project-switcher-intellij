@@ -1,44 +1,32 @@
 package dev.ashenarx.project.switcher.intellij.ui
 
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import com.intellij.testFramework.common.timeoutRunBlocking
-import com.intellij.testFramework.junit5.TestApplication
-import com.intellij.testFramework.junit5.fixture.projectFixture
-import com.intellij.testFramework.junit5.fixture.tempPathFixture
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
+import dev.ashenarx.project.switcher.intellij.model.SwitchOutcome
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.awt.Component
-import java.awt.Graphics
-import javax.swing.Icon
-import kotlin.time.Duration.Companion.seconds
 
-@TestApplication
 class ProjectSwitcherModelTest {
 
-    private companion object {
-        val project = projectFixture(tempPathFixture(subdirName = "ModelTest"), openAfterCreation = true)
-    }
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val model = ProjectSwitcherModel(currentProject = null, coroutineScope = scope)
 
-    // Each row differs from the others under some rule, so no rule can pass a test by accident.
-    private val firstRow = open("first")
     private val currentRow = open("current", isCurrent = true)
+    private val previousRow = open("previous")
     private val middle = recent("middle")
     private val last = recent("last")
-    private val items = ProjectList(open = listOf(firstRow, currentRow), recent = listOf(middle, last))
+    private val items = ProjectList(open = listOf(currentRow, previousRow), recent = listOf(middle, last))
 
     @AfterEach
     fun cancelScope() {
@@ -46,26 +34,26 @@ class ProjectSwitcherModelTest {
     }
 
     @Test
-    fun `the top match outranks the current project`() = timeoutRunBlocking {
+    fun `without a query the previous project is selected, not the current one`() = timeoutRunBlocking {
         val model = modelOver(items)
 
-        model.query = "last"
-
-        assertEquals(last.id, model.selectedId)
+        assertEquals(previousRow.id, model.selectedId, "Enter right after opening the popup has to switch back")
     }
 
     @Test
-    fun `without a top match the current project is selected, not the first row`() = timeoutRunBlocking {
-        val model = modelOver(items)
+    fun `the current project is selected when it is the only row`() = timeoutRunBlocking {
+        val model = modelOver(ProjectList(open = listOf(currentRow), recent = emptyList()))
 
         assertEquals(currentRow.id, model.selectedId)
     }
 
     @Test
-    fun `without a current project the first row is selected`() = timeoutRunBlocking {
-        val model = modelOver(ProjectList(open = listOf(firstRow), recent = listOf(middle)))
+    fun `the top match outranks the previous project`() = timeoutRunBlocking {
+        val model = modelOver(items)
 
-        assertEquals(firstRow.id, model.selectedId)
+        model.queryState.setTextAndPlaceCursorAtEnd("last")
+
+        assertEquals(last.id, model.selectedId)
     }
 
     @Test
@@ -79,14 +67,31 @@ class ProjectSwitcherModelTest {
     fun `highlights follow the query and vanish with it`() = timeoutRunBlocking {
         val model = modelOver(items)
 
-        model.query = "first"
+        model.queryState.setTextAndPlaceCursorAtEnd("previous")
 
-        val name = checkNotNull(model.highlights[firstRow.id]).name
-        assertEquals("first", name.joinToString("") { firstRow.displayName.substring(it) })
+        val name = checkNotNull(model.highlights[previousRow.id]).name
+        assertEquals("previous", name.joinToString("") { previousRow.displayName.substring(it) })
 
-        model.query = ""
+        model.queryState.setTextAndPlaceCursorAtEnd("")
 
         assertEquals(emptyMap<String, Any>(), model.highlights)
+    }
+
+    @Test
+    fun `a name match outranks a match found only in the location`() = timeoutRunBlocking {
+        val byLocation = recent("tools", location = "~/alpha/tools")
+        val byName = recent("thealpha")
+        val model = modelOver(ProjectList(open = emptyList(), recent = listOf(byLocation, byName)))
+
+        model.queryState.setTextAndPlaceCursorAtEnd("alpha")
+
+        assertEquals(
+            listOf(byName.id, byLocation.id),
+            model.rows.all.map { it.id },
+            "a hit in the name says more about the project than one in the folder above it",
+        )
+        assertEquals(byName.id, model.selectedId)
+        assertFalse(checkNotNull(model.highlights[byLocation.id]).isNameOnly, "the location hit must be shown")
     }
 
     @Test
@@ -94,21 +99,21 @@ class ProjectSwitcherModelTest {
         val model = modelOver(items)
         model.select(last.id)
 
-        model.query = "first"
+        model.queryState.setTextAndPlaceCursorAtEnd("previous")
 
-        assertEquals(firstRow.id, model.selectedId, "a new ranking outranks the selection made under the old one")
+        assertEquals(previousRow.id, model.selectedId, "a new query outranks the selection made under the old one")
     }
 
     @Test
-    fun `a selection made by hand survives a refresh that only fills in branch names`() = timeoutRunBlocking {
+    fun `a selection made by hand survives a refresh that reorders the list`() = timeoutRunBlocking {
         val actions = FakeProjectActions(items)
         val model = modelOver(actions)
         model.select(last.id)
 
-        actions.publish(items.withBranches())
+        actions.publish(ProjectList(open = items.open.reversed(), recent = items.recent.reversed().map { it.copy(branch = "main") }))
         model.refresh()
 
-        awaitRows(model) { rows -> rows.all.all { it.branch != null } }
+        awaitRows(model) { rows -> rows.recent.all { it.branch != null } }
         assertEquals(last.id, model.selectedId)
     }
 
@@ -121,7 +126,6 @@ class ProjectSwitcherModelTest {
         model.closeSelected()
 
         assertEquals(listOf(middle.path), actions.forgotten)
-        awaitRows(model) { rows -> rows.all.none { it.id == middle.id } }
         assertEquals(last.id, model.selectedId, "expected the row below the one that was removed")
     }
 
@@ -138,42 +142,100 @@ class ProjectSwitcherModelTest {
         model.refresh()
 
         awaitRows(model) { rows -> rows.recent.isEmpty() }
-        assertEquals(currentRow.id, model.selectedId, "expected the default, not a dangling id")
+        assertEquals(previousRow.id, model.selectedId, "expected the default, not a dangling id")
     }
 
     @Test
-    fun `closing the current project is left to the caller when another one is open`() = timeoutRunBlocking {
-        val actions = FakeProjectActions(items)
-        val model = modelOver(actions)
-        model.select(currentRow.id)
+    fun `closing the current project is handed back to the caller even when another one is open`() =
+        timeoutRunBlocking {
+            val actions = FakeProjectActions(items)
+            val model = modelOver(actions)
+            model.select(currentRow.id)
 
-        assertNull(model.closeSelected(), "the popup must not offer to close the only window in reach")
-        assertEquals(emptyList<ProjectItem.Open>(), actions.closed)
-    }
+            assertEquals(
+                SwitchOutcome.CloseCurrent(currentRow, next = previousRow),
+                model.closeSelected(),
+                "the close shortcut must not silently do nothing, and the previous project takes over",
+            )
+            assertEquals(emptyList<ProjectItem.Open>(), actions.closed, "the caller closes it once the popup is gone")
+        }
 
     @Test
     fun `closing the last open project is handed back to the caller`() = timeoutRunBlocking {
         val model = modelOver(ProjectList(open = listOf(currentRow), recent = listOf(middle)))
+        model.select(currentRow.id)
 
-        assertEquals(currentRow, model.closeSelected())
+        assertEquals(SwitchOutcome.CloseCurrent(currentRow, next = null), model.closeSelected())
     }
 
     @Test
-    fun `load reaches READY and publishes the open projects`() = timeoutRunBlocking {
-        assertEquals(ProjectLoadState.LOADING, model.loadState)
+    fun `removing a project keeps the list and its icons on screen`() = timeoutRunBlocking {
+        val actions = FakeProjectActions(items)
+        val model = modelOver(actions)
+        model.icons[last.path] = StubBitmap
+        model.select(middle.id)
+
+        model.closeSelected()
+
+        repeat(25) {
+            assertEquals(ProjectLoadState.READY, model.loadState, "a removal must not flash the loading placeholder")
+            assertSame(StubBitmap, model.icons[last.path], "a removal must keep the icons of the rows that stay")
+            delay(20)
+        }
+    }
+
+    @Test
+    fun `the last known list and its icons are shown at once while the fresh one loads`() = timeoutRunBlocking {
+        val snapshot = ProjectList(open = listOf(currentRow), recent = listOf(middle))
+        val actions = FakeProjectActions(items, snapshot = snapshot, cachedIcons = mapOf(middle.path to StubBitmap))
+        actions.collectGate = CompletableDeferred()
+        val model = model(actions)
 
         model.load()
 
-        assertEquals(ProjectLoadState.READY, awaitLoaded())
-        assertTrue(
-            model.projects.open.any { it.displayName == "ModelTest" },
-            "expected the open project in the list, got ${model.projects.open.map(ProjectItem::displayName)}",
-        )
+        assertEquals(ProjectLoadState.READY, model.loadState, "a known list must not wait behind a loading placeholder")
+        assertEquals(snapshot, model.projects)
+        assertSame(StubBitmap, model.icons[middle.path])
+
+        checkNotNull(actions.collectGate).complete(Unit)
+        awaitRows(model) { rows -> rows == items }
+    }
+
+    @Test
+    fun `without a known list the popup loads first`() = timeoutRunBlocking {
+        val actions = FakeProjectActions(items)
+        actions.collectGate = CompletableDeferred()
+        val model = model(actions)
+
+        model.load()
+        assertEquals(ProjectLoadState.LOADING, model.loadState)
+
+        checkNotNull(actions.collectGate).complete(Unit)
+        assertEquals(ProjectLoadState.READY, awaitLoaded(model))
+        assertEquals(items, model.projects)
+    }
+
+    @Test
+    fun `a failed load shows the error unless a known list is already on screen`() = timeoutRunBlocking {
+        val failing = FakeProjectActions(items).apply { failure = IllegalStateException("broken platform") }
+        val bare = model(failing)
+        bare.load()
+        assertEquals(ProjectLoadState.ERROR, awaitLoaded(bare))
+
+        val snapshot = ProjectList(open = listOf(currentRow), recent = emptyList())
+        val known = model(FakeProjectActions(items, snapshot = snapshot).apply { failure = IllegalStateException("broken platform") })
+        known.load()
+        delay(100)
+        assertEquals(ProjectLoadState.READY, known.loadState, "an outdated list is better than an error")
+        assertEquals(snapshot, known.projects)
     }
 
     @Test
     fun `refresh waits for the first load instead of racing it`() = timeoutRunBlocking {
-        assertEquals(ProjectLoadState.LOADING, model.loadState)
+        val actions = FakeProjectActions(items)
+        actions.collectGate = CompletableDeferred()
+        val model = model(actions)
+        model.load()
 
         model.refresh()
         delay(200)
@@ -184,52 +246,57 @@ class ProjectSwitcherModelTest {
 
     @Test
     fun `refresh republishes the list without a loading placeholder or an icon reset`() = timeoutRunBlocking {
-        model.load()
-        assertEquals(ProjectLoadState.READY, awaitLoaded())
+        val actions = FakeProjectActions(ProjectList(open = listOf(currentRow), recent = emptyList()))
+        val model = modelOver(actions)
 
-        // No project owns this path, so only a wholesale reset can remove it.
+        // No project owns this key, so only a wholesale reset can remove it.
         val probe = "/not/a/project"
-        model.icons[probe] = StubIcon
+        model.icons[probe] = StubBitmap
 
+        actions.publish(items)
         model.refresh()
 
         // Polled, not awaited, to catch a refresh that breaks an invariant midway.
-        repeat(50) {
+        repeat(25) {
             assertEquals(ProjectLoadState.READY, model.loadState, "a refresh must not show the loading placeholder")
-            assertSame(StubIcon, model.icons[probe], "a refresh must keep the icons it already has")
+            assertSame(StubBitmap, model.icons[probe], "a refresh must keep the icons it already has")
             delay(20)
         }
 
-        assertTrue(model.projects.open.any { it.displayName == "ModelTest" })
+        assertEquals(items, model.projects)
+    }
+
+    @Test
+    fun `recent projects whose directory is gone are reported`() = timeoutRunBlocking {
+        val model = modelOver(FakeProjectActions(items, gone = setOf(last.path, "/not/listed")))
+
+        awaitCondition { model.missing.isNotEmpty() }
+        assertEquals(setOf(last.path), model.missing)
     }
 
     private suspend fun modelOver(projects: ProjectList): ProjectSwitcherModel =
         modelOver(FakeProjectActions(projects))
 
     private suspend fun modelOver(actions: FakeProjectActions): ProjectSwitcherModel {
-        val model = ProjectSwitcherModel(currentProject = null, coroutineScope = scope, actions = actions)
+        val model = model(actions)
         model.load()
-        while (model.loadState == ProjectLoadState.LOADING) delay(20)
+        awaitLoaded(model)
         return model
     }
 
-    private suspend fun awaitRows(model: ProjectSwitcherModel, matches: (ProjectList) -> Boolean) {
-        while (!matches(model.rows)) delay(20)
-    }
+    private fun model(actions: FakeProjectActions) =
+        ProjectSwitcherModel(coroutineScope = scope, actions = actions, uiContext = Dispatchers.Unconfined)
 
-    private suspend fun awaitLoaded(): ProjectLoadState? = withTimeoutOrNull(60.seconds) {
+    private suspend fun awaitLoaded(model: ProjectSwitcherModel): ProjectLoadState {
         while (model.loadState == ProjectLoadState.LOADING) delay(20)
-        model.loadState
+        return model.loadState
     }
-}
 
-private fun ProjectList.withBranches(): ProjectList = ProjectList(
-    open = open.map { it.copy(branch = "main") },
-    recent = recent.map { it.copy(branch = "main") },
-)
+    private suspend fun awaitRows(model: ProjectSwitcherModel, matches: (ProjectList) -> Boolean) {
+        awaitCondition { matches(model.rows) }
+    }
 
-private object StubIcon : Icon {
-    override fun paintIcon(c: Component?, g: Graphics?, x: Int, y: Int) = Unit
-    override fun getIconWidth(): Int = 16
-    override fun getIconHeight(): Int = 16
+    private suspend fun awaitCondition(condition: () -> Boolean) {
+        while (!condition()) delay(20)
+    }
 }

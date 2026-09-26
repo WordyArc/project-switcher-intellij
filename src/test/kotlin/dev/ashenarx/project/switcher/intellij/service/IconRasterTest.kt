@@ -1,4 +1,4 @@
-package dev.ashenarx.project.switcher.intellij.ui
+package dev.ashenarx.project.switcher.intellij.service
 
 import com.intellij.ide.RecentProjectIconHelper
 import org.junit.jupiter.api.Assertions.assertEquals

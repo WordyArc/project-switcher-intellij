@@ -14,44 +14,41 @@ data class ProjectList(
     val hasRecent: Boolean get() = recent.isNotEmpty()
     val isEmpty: Boolean get() = all.isEmpty()
 
-    fun rankedBy(score: (String) -> Int?): ProjectList {
-        return ProjectList(
-            open = open.ranked(score),
-            recent = recent.ranked(score),
-        )
-    }
+    fun without(item: ProjectItem): ProjectList = ProjectList(
+        open = open.filterNot { it.id == item.id },
+        recent = recent.filterNot { it.id == item.id },
+    )
 
-    fun topMatch(score: (String) -> Int?): ProjectItem? =
-        listOfNotNull(open.firstOrNull(), recent.firstOrNull())
-            .maxByOrNull { score(it.searchText) ?: Int.MIN_VALUE }
+    internal fun rankedBy(match: (String) -> Match?): Ranking {
+        val highlights = HashMap<String, Highlights>()
+        val ranks = HashMap<String, Rank>()
+
+        fun <T : ProjectItem> List<T>.ranked(): List<T> = mapNotNull { item ->
+            val found = match(item.searchText) ?: return@mapNotNull null
+            val split = item.splitHighlights(found.ranges)
+            highlights[item.id] = split
+            ranks[item.id] = Rank(split.isNameOnly, found.degree)
+            item
+        }.sortedByDescending { ranks.getValue(it.id) }
+
+        val rows = ProjectList(open = open.ranked(), recent = recent.ranked())
+        val top = listOfNotNull(rows.open.firstOrNull(), rows.recent.firstOrNull())
+            .maxByOrNull { ranks.getValue(it.id) }
+
+        return Ranking(rows, highlights, top)
+    }
 
     companion object {
         val EMPTY = ProjectList(emptyList(), emptyList())
     }
 }
 
-private fun <T : ProjectItem> List<T>.ranked(score: (String) -> Int?): List<T> =
-    mapNotNull { item -> score(item.searchText)?.let { item to it } }
-        .sortedByDescending { (_, degree) -> degree }
-        .map { (item, _) -> item }
+internal class Ranking(val rows: ProjectList, val highlights: Map<String, Highlights>, val top: ProjectItem?)
+
+private data class Rank(val nameOnly: Boolean, val degree: Int) : Comparable<Rank> {
+    override fun compareTo(other: Rank): Int =
+        compareValuesBy(this, other, Rank::nameOnly, Rank::degree)
+}
 
 val ProjectItem.searchText: String
-    get() = if (path.isEmpty()) displayName else "$displayName $path"
-
-fun moveSelection(items: List<ProjectItem>, selectedId: String?, delta: Int): String? {
-    if (items.isEmpty()) return null
-
-    val currentIndex = items.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
-    val newIndex = (currentIndex + delta).mod(items.size)
-    return items[newIndex].id
-}
-
-fun defaultSelection(items: List<ProjectItem>): String? =
-    (items.firstOrNull { it.isCurrent } ?: items.firstOrNull())?.id
-
-fun selectionAfterRemoving(items: List<ProjectItem>, removedId: String?): String? {
-    val index = items.indexOfFirst { it.id == removedId }
-    if (index < 0) return null
-
-    return (items.getOrNull(index + 1) ?: items.getOrNull(index - 1))?.id
-}
+    get() = if (location.isEmpty()) displayName else "$displayName $location"

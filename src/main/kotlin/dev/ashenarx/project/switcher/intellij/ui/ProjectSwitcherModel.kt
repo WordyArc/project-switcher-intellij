@@ -1,5 +1,7 @@
 package dev.ashenarx.project.switcher.intellij.ui
 
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -7,21 +9,23 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
+import androidx.compose.ui.graphics.ImageBitmap
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.thisLogger
-import com.intellij.openapi.project.Project
+import dev.ashenarx.project.switcher.intellij.model.Choice
 import dev.ashenarx.project.switcher.intellij.model.Highlights
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
 import dev.ashenarx.project.switcher.intellij.model.ProjectMatcher
-import dev.ashenarx.project.switcher.intellij.model.defaultSelection
+import dev.ashenarx.project.switcher.intellij.model.Ranking
+import dev.ashenarx.project.switcher.intellij.model.SwitchOutcome
 import dev.ashenarx.project.switcher.intellij.model.moveSelection
-import dev.ashenarx.project.switcher.intellij.model.searchText
+import dev.ashenarx.project.switcher.intellij.model.pageSelection
+import dev.ashenarx.project.switcher.intellij.model.resolveSelection
 import dev.ashenarx.project.switcher.intellij.model.selectionAfterRemoving
-import dev.ashenarx.project.switcher.intellij.model.splitHighlights
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,94 +33,90 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import javax.swing.Icon
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.TimeSource
 
 @Stable
 internal class ProjectSwitcherModel(
-    private val currentProject: Project?,
     private val coroutineScope: CoroutineScope,
-    private val actions: ProjectActions = PlatformProjectActions,
+    private val actions: ProjectActions,
+    // any(): the popup blocks the default modality.
+    private val uiContext: CoroutineContext = Dispatchers.EDT + ModalityState.any().asContextElement(),
 ) {
+
+    private val created = TimeSource.Monotonic.markNow()
+
+    val queryState = TextFieldState()
+
+    val query: String by derivedStateOf { queryState.text.toString() }
 
     var projects: ProjectList by mutableStateOf(ProjectList.EMPTY)
         private set
 
     // Separate from projects so each icon arrival does not restart effects keyed on the list.
-    val icons: SnapshotStateMap<String, Icon> = mutableStateMapOf()
+    val icons: SnapshotStateMap<String, ImageBitmap> = mutableStateMapOf()
+
+    var missing: Set<String> by mutableStateOf(emptySet())
+        private set
 
     var loadState: ProjectLoadState by mutableStateOf(ProjectLoadState.LOADING)
         private set
 
-    var query: String by mutableStateOf("")
-
     private var choice: Choice? by mutableStateOf(null)
-
-    private var pendingSelection: String? by mutableStateOf(null)
 
     private var refreshJob: Job? = null
 
-    // Jewel's SpeedSearchState does not expose the matcher it builds, and ranking needs one too.
-    private val matcher: ProjectMatcher by derivedStateOf { ProjectMatcher(query) }
+    private var shownReported = false
 
-    val rows: ProjectList by derivedStateOf {
-        if (query.isBlank()) projects else projects.rankedBy(matcher::degreeOrNull)
+    private val ranking: Ranking? by derivedStateOf {
+        val text = query
+        if (text.isBlank()) null else projects.rankedBy(ProjectMatcher(text)::match)
     }
 
-    val highlights: Map<String, Highlights> by derivedStateOf {
-        if (query.isBlank()) {
-            emptyMap()
-        } else {
-            rows.all.associate { it.id to it.splitHighlights(matcher.rangesOrNull(it.searchText).orEmpty()) }
-        }
-    }
+    val rows: ProjectList by derivedStateOf { ranking?.rows ?: projects }
 
-    private val preferred: ProjectItem? by derivedStateOf {
-        if (query.isBlank()) null else rows.topMatch(matcher::degreeOrNull)
-    }
+    val highlights: Map<String, Highlights> by derivedStateOf { ranking?.highlights.orEmpty() }
 
-    // A hand-made choice beats the top match only while the ranking it was made against holds.
-    val selectedId: String? by derivedStateOf {
-        val ids = rows.all.map { it.id }
-
-        choice?.takeIf { it.ranking == ids && it.instead == preferred?.id }?.id
-            ?: preferred?.id
-            ?: pendingSelection?.takeIf { it in ids }
-            ?: defaultSelection(rows.all)
-    }
+    val selectedId: String? by derivedStateOf { resolveSelection(rows.all, query, choice, ranking?.top) }
 
     val selectedItem: ProjectItem? by derivedStateOf { rows.all.firstOrNull { it.id == selectedId } }
 
     fun load() {
         coroutineScope.coroutineContext.cancelChildren()
-        loadState = ProjectLoadState.LOADING
-        icons.clear()
+
+        val snapshot = actions.snapshot()
+        if (snapshot != null) {
+            projects = snapshot
+            icons.putAll(actions.cachedIcons(snapshot.all.map { it.path }))
+            loadState = ProjectLoadState.READY
+        } else {
+            loadState = ProjectLoadState.LOADING
+        }
 
         coroutineScope.launch {
-            val started = TimeSource.Monotonic.markNow()
-
             val loaded = try {
-                actions.collect(currentProject)
+                actions.collect()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 thisLogger().warn("Cannot load projects", e)
-                onEdt { loadState = ProjectLoadState.ERROR }
+                if (snapshot == null) onUi { loadState = ProjectLoadState.ERROR }
                 return@launch
             }
 
-            onEdt {
+            onUi {
                 projects = loaded
                 loadState = ProjectLoadState.READY
             }
 
             thisLogger().debug {
-                "Project list shown after ${started.elapsedNow().inWholeMilliseconds} ms: " +
+                "Project list collected ${created.elapsedNow().inWholeMilliseconds} ms after the popup was requested: " +
                     "${loaded.open.size} open, ${loaded.recent.size} recent, " +
                     "${loaded.all.count { it.branch != null }} with a branch"
             }
 
-            loadIcons(loaded.all.map { it.path })
+            launch { loadIcons(loaded.all) }
+            checkMissing(loaded)
         }
     }
 
@@ -126,7 +126,7 @@ internal class ProjectSwitcherModel(
         refreshJob?.cancel()
         refreshJob = coroutineScope.launch {
             val loaded = try {
-                actions.collect(currentProject)
+                actions.collect()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -134,54 +134,79 @@ internal class ProjectSwitcherModel(
                 return@launch
             }
 
-            val withoutIcon = onEdt {
+            val withoutIcon = onUi {
                 projects = loaded
-                loaded.all.map { it.path }.filter { it !in icons }
+                loaded.all.filter { it.path !in icons }
             }
 
-            loadIcons(withoutIcon)
+            launch { loadIcons(withoutIcon) }
+            checkMissing(loaded)
         }
     }
 
     fun select(id: String?) {
-        pendingSelection = null
-        choice = id?.let { Choice(id = it, ranking = rows.all.map(ProjectItem::id), instead = preferred?.id) }
+        choice = id?.let { Choice(id = it, query = query) }
     }
 
     fun moveSelection(delta: Int) {
         select(moveSelection(rows.all, selectedId, delta))
     }
 
-    // The current project is returned for the caller to close, and only when it is the last one open.
-    fun closeSelected(): ProjectItem.Open? {
+    fun moveSelectionByPage(delta: Int) {
+        select(pageSelection(rows.all, selectedId, delta))
+    }
+
+    fun selectFirst() {
+        select(rows.all.firstOrNull()?.id)
+    }
+
+    fun selectLast() {
+        select(rows.all.lastOrNull()?.id)
+    }
+
+    fun clearQuery(): Boolean {
+        if (queryState.text.isEmpty()) return false
+
+        queryState.clearText()
+        return true
+    }
+
+    fun closeSelected(): SwitchOutcome.CloseCurrent? {
         val selected = selectedItem ?: return null
 
-        if (selected.isCurrent) {
-            return (selected as? ProjectItem.Open)?.takeIf { projects.open.size == 1 }
+        if (selected is ProjectItem.Open && selected.isCurrent) {
+            return SwitchOutcome.CloseCurrent(selected, next = projects.open.firstOrNull { !it.isCurrent })
         }
 
-        delete(selected)
+        remove(selected)
         return null
     }
 
-    private fun delete(item: ProjectItem) {
-        choice = null
-        pendingSelection = selectionAfterRemoving(rows.all, item.id)
+    fun reportShown() {
+        if (shownReported) return
+        shownReported = true
 
+        thisLogger().debug { "Project list shown ${created.elapsedNow().inWholeMilliseconds} ms after the popup was requested" }
+    }
+
+    private fun remove(item: ProjectItem) {
         when (item) {
             is ProjectItem.Open -> actions.close(item)
             is ProjectItem.Recent -> actions.forget(item.path)
         }
 
-        load()
+        val neighbour = selectionAfterRemoving(rows.all, item.id)
+        projects = projects.without(item)
+        select(neighbour)
+        refresh()
     }
 
-    private suspend fun loadIcons(paths: List<String>) {
-        if (paths.isEmpty()) return
+    private suspend fun loadIcons(items: List<ProjectItem>) {
+        if (items.isEmpty()) return
 
         try {
-            actions.loadIcons(paths) { path, icon ->
-                onEdt { icons[path] = icon }
+            actions.loadIcons(items) { key, icon ->
+                onUi { icons[key] = icon }
             }
         } catch (e: CancellationException) {
             throw e
@@ -190,11 +215,23 @@ internal class ProjectSwitcherModel(
         }
     }
 
-    // any(): the popup blocks the default modality.
-    private suspend fun <T> onEdt(block: () -> T): T =
-        withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) { block() }
+    private suspend fun checkMissing(list: ProjectList) {
+        val paths = list.recent.map { it.path }
+        if (paths.isEmpty()) return
 
-    private data class Choice(val id: String, val ranking: List<String>, val instead: String?)
+        val gone = try {
+            actions.missing(paths)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            thisLogger().debug("Cannot check which recent projects are gone", e)
+            return
+        }
+
+        onUi { missing = gone }
+    }
+
+    private suspend fun <T> onUi(block: () -> T): T = withContext(uiContext) { block() }
 }
 
 internal enum class ProjectLoadState {

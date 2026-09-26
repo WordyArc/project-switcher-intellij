@@ -1,4 +1,4 @@
-package dev.ashenarx.project.switcher.intellij.ui
+package dev.ashenarx.project.switcher.intellij.service
 
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage

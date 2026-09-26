@@ -5,6 +5,7 @@ import com.intellij.ide.RecentProjectsManagerBase
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.ui.DeferredIcon
+import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
@@ -31,10 +32,12 @@ class IconLoadBenchmark {
         println("collect    cold : ${collectCold.inWholeMilliseconds} ms")
         println("collect    warm : ${collectWarm.inWholeMilliseconds} ms")
 
-        val cold = measureTime { loader.loadIcons(paths) { _, _ -> } }
+        val projects = paths.map { ProjectItem.Recent(displayName = it, path = it, location = it, branch = null) }
+
+        val cold = measureTime { loader.loadIcons(projects) { _, _ -> } }
         println("loadIcons  before warm up : ${cold.inWholeMilliseconds} ms")
 
-        val warm = measureTime { loader.loadIcons(paths) { _, _ -> } }
+        val warm = measureTime { loader.loadIcons(projects) { _, _ -> } }
         println("loadIcons  after  warm up : ${warm.inWholeMilliseconds} ms")
 
         val manager = RecentProjectsManager.getInstance() as RecentProjectsManagerBase

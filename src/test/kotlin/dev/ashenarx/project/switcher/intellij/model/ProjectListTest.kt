@@ -7,38 +7,55 @@ import org.junit.jupiter.api.Test
 class ProjectListTest {
 
     @Test
-    fun `rankedBy keeps items matching by name or path`() {
+    fun `rankedBy keeps items matching by name or location`() {
         val list = ProjectList(
-            open = listOf(open("alpha", "/home/me/alpha")),
-            recent = listOf(recent("beta", "/work/beta"), recent("gamma", "/home/me/gamma")),
+            open = listOf(open("alpha", "~/me/alpha")),
+            recent = listOf(recent("beta", "/work/beta"), recent("gamma", "~/me/gamma")),
         )
 
-        val byName = list.rankedBy { text -> 0.takeIf { text.contains("beta") } }
-        assertEquals(emptyList<ProjectItem.Open>(), byName.open)
-        assertEquals(listOf("recent:/work/beta"), byName.recent.map { it.id })
+        val byName = list.rankedBy(matchingFirst("beta"))
+        assertEquals(emptyList<ProjectItem.Open>(), byName.rows.open)
+        assertEquals(listOf("recent:/work/beta"), byName.rows.recent.map { it.id })
 
-        val byPath = list.rankedBy { text -> 0.takeIf { text.contains("/home/me") } }
-        assertEquals(listOf("open:hash-alpha", "recent:/home/me/gamma"), byPath.all.map { it.id })
+        val byLocation = list.rankedBy(matchingFirst("~/me"))
+        assertEquals(listOf("open:hash-alpha", "recent:~/me/gamma"), byLocation.rows.all.map { it.id })
     }
 
     @Test
-    fun `rankedBy that matches nothing yields an empty list`() {
+    fun `rankedBy that matches nothing yields an empty list and no top match`() {
         val list = ProjectList(open = listOf(open("alpha", "/a")), recent = listOf(recent("beta", "/b")))
 
-        assertEquals(true, list.rankedBy { null }.isEmpty)
+        val ranking = list.rankedBy { null }
+
+        assertEquals(true, ranking.rows.isEmpty)
+        assertNull(ranking.top)
     }
 
     @Test
-    fun `rankedBy sorts by score inside a section without merging the two`() {
+    fun `rankedBy sorts by degree inside a section without merging the two`() {
         val list = ProjectList(
             open = listOf(open("alpha", "/a"), open("beta", "/b")),
             recent = listOf(recent("gamma", "/c"), recent("delta", "/d")),
         )
 
-        val ranked = list.rankedBy { text -> if (text.startsWith("beta") || text.startsWith("delta")) 10 else 1 }
+        val ranked = list.rankedBy { text -> nameMatch(if (text.startsWith("beta") || text.startsWith("delta")) 10 else 1) }
 
-        assertEquals(listOf("open:hash-beta", "open:hash-alpha"), ranked.open.map { it.id })
-        assertEquals(listOf("recent:/d", "recent:/c"), ranked.recent.map { it.id })
+        assertEquals(listOf("open:hash-beta", "open:hash-alpha"), ranked.rows.open.map { it.id })
+        assertEquals(listOf("recent:/d", "recent:/c"), ranked.rows.recent.map { it.id })
+    }
+
+    @Test
+    fun `a match in the name outranks a better one in the location`() {
+        val list = ProjectList(
+            open = emptyList(),
+            recent = listOf(recent("tools", "~/alpha/tools"), recent("xalpha", "~/x/xalpha")),
+        )
+
+        val ranked = list.rankedBy { text ->
+            if (text.startsWith("tools")) Match(degree = 900, ranges = listOf(8..12)) else nameMatch(degree = 1)
+        }
+
+        assertEquals(listOf("recent:~/x/xalpha", "recent:~/alpha/tools"), ranked.rows.recent.map { it.id })
     }
 
     @Test
@@ -50,90 +67,62 @@ class ProjectListTest {
 
         assertEquals(
             listOf("recent:/c", "recent:/d", "recent:/e"),
-            list.rankedBy { 7 }.recent.map { it.id },
+            list.rankedBy { nameMatch(7) }.rows.recent.map { it.id },
         )
     }
 
     @Test
-    fun `topMatch reaches across the section boundary`() {
+    fun `rankedBy reports the highlights of every row it keeps`() {
+        val list = ProjectList(open = emptyList(), recent = listOf(recent("tools", "~/alpha/tools")))
+
+        val ranking = list.rankedBy { Match(degree = 1, ranges = listOf(0..1, 8..12)) }
+
+        assertEquals(Highlights(name = listOf(0..1), location = listOf(2..6)), ranking.highlights["recent:~/alpha/tools"])
+    }
+
+    @Test
+    fun `the top match reaches across the section boundary`() {
         val list = ProjectList(
             open = listOf(open("alpha", "/a")),
             recent = listOf(recent("beta", "/b")),
         )
 
-        assertEquals("recent:/b", list.topMatch { text -> if (text.startsWith("beta")) 900 else 100 }?.id)
-        assertEquals("open:hash-alpha", list.topMatch { text -> if (text.startsWith("beta")) 100 else 900 }?.id)
+        assertEquals("recent:/b", list.rankedBy { text -> nameMatch(if (text.startsWith("beta")) 900 else 100) }.top?.id)
+        assertEquals("open:hash-alpha", list.rankedBy { text -> nameMatch(if (text.startsWith("beta")) 100 else 900) }.top?.id)
     }
 
     @Test
-    fun `topMatch breaks a tie in favour of the open project`() {
+    fun `the top match breaks a tie in favour of the open project`() {
         val list = ProjectList(
             open = listOf(open("alpha", "/a")),
             recent = listOf(recent("beta", "/b")),
         )
 
-        assertEquals("open:hash-alpha", list.topMatch { 500 }?.id)
+        assertEquals("open:hash-alpha", list.rankedBy { nameMatch(500) }.top?.id)
     }
 
     @Test
-    fun `topMatch of an empty list is null`() {
-        assertNull(ProjectList.EMPTY.topMatch { 1 })
+    fun `the top match of an empty list is null`() {
+        assertNull(ProjectList.EMPTY.rankedBy { nameMatch(1) }.top)
     }
 
     @Test
-    fun `topMatch ignores everything below each section head`() {
+    fun `the top match compares only the head of each section`() {
         val list = ProjectList(
             open = listOf(open("alpha", "/a"), open("zeta", "/z")),
             recent = listOf(recent("beta", "/b")),
         )
 
-        assertEquals("recent:/b", list.topMatch { text -> if (text.startsWith("zeta")) 999 else if (text.startsWith("beta")) 500 else 100 }?.id)
+        val ranking = list.rankedBy { text ->
+            nameMatch(if (text.startsWith("zeta")) 999 else if (text.startsWith("beta")) 500 else 100)
+        }
+
+        assertEquals("open:hash-zeta", ranking.top?.id, "zeta heads the ranked open section")
     }
 
     @Test
-    fun `moveSelection walks the combined list across the section boundary`() {
-        val items = listOf(open("alpha", "/a"), recent("beta", "/b"), recent("gamma", "/c"))
-
-        assertEquals("recent:/b", moveSelection(items, "open:hash-alpha", delta = +1))
-        assertEquals("open:hash-alpha", moveSelection(items, "recent:/b", delta = -1))
-    }
-
-    @Test
-    fun `moveSelection wraps around at both ends`() {
-        val items = listOf(open("alpha", "/a"), recent("beta", "/b"))
-
-        assertEquals("recent:/b", moveSelection(items, "open:hash-alpha", delta = -1))
-        assertEquals("open:hash-alpha", moveSelection(items, "recent:/b", delta = +1))
-    }
-
-    @Test
-    fun `moveSelection wraps a single row onto itself`() {
-        val items = listOf(open("alpha", "/a"))
-
-        assertEquals("open:hash-alpha", moveSelection(items, "open:hash-alpha", delta = -1))
-        assertEquals("open:hash-alpha", moveSelection(items, "open:hash-alpha", delta = +1))
-    }
-
-    @Test
-    fun `moveSelection falls back to the first item when the selection is gone`() {
-        val items = listOf(open("alpha", "/a"), recent("beta", "/b"))
-
-        assertEquals("open:hash-alpha", moveSelection(items, "recent:/vanished", delta = 0))
-        assertNull(moveSelection(emptyList(), "open:hash-alpha", delta = +1))
-    }
-
-    @Test
-    fun `defaultSelection prefers the current project over the first row`() {
-        val items = listOf(open("alpha", "/a"), open("beta", "/b", isCurrent = true))
-
-        assertEquals("open:hash-beta", defaultSelection(items))
-        assertEquals("open:hash-alpha", defaultSelection(listOf(open("alpha", "/a"))))
-        assertNull(defaultSelection(emptyList()))
-    }
-
-    @Test
-    fun `searchText covers both name and path`() {
-        assertEquals("alpha /home/alpha", open("alpha", "/home/alpha").searchText)
+    fun `searchText covers both name and location`() {
+        assertEquals("alpha ~/alpha", open("alpha", "~/alpha").searchText)
         assertEquals("alpha", open("alpha", "").searchText)
     }
 
@@ -148,50 +137,34 @@ class ProjectListTest {
     }
 
     @Test
-    fun `selection after removing moves down the list`() {
-        val items = listOf(recent("a", "/a"), recent("b", "/b"), recent("c", "/c"))
+    fun `without drops the item from whichever section holds it`() {
+        val alpha = open("alpha", "/a")
+        val beta = recent("beta", "/b")
+        val list = ProjectList(open = listOf(alpha), recent = listOf(beta))
 
-        assertEquals("recent:/b", selectionAfterRemoving(items, "recent:/a"))
-        assertEquals("recent:/c", selectionAfterRemoving(items, "recent:/b"))
+        assertEquals(ProjectList(open = emptyList(), recent = listOf(beta)), list.without(alpha))
+        assertEquals(ProjectList(open = listOf(alpha), recent = emptyList()), list.without(beta))
     }
 
-    @Test
-    fun `selection after removing the last item steps back`() {
-        val items = listOf(recent("a", "/a"), recent("b", "/b"))
-
-        assertEquals("recent:/a", selectionAfterRemoving(items, "recent:/b"))
+    private fun matchingFirst(fragment: String): (String) -> Match? = { text ->
+        text.indexOf(fragment).takeIf { it >= 0 }?.let { Match(degree = 0, ranges = listOf(it until it + fragment.length)) }
     }
 
-    @Test
-    fun `selection after removing the only item is nothing`() {
-        assertNull(selectionAfterRemoving(listOf(recent("a", "/a")), "recent:/a"))
-        assertNull(selectionAfterRemoving(emptyList(), "recent:/a"))
-    }
+    private fun nameMatch(degree: Int) = Match(degree = degree, ranges = listOf(0..0))
 
-    @Test
-    fun `selection after removing the last open item lands on the first recent one`() {
-        val items = listOf(open("a", "/a"), recent("b", "/b"))
-
-        assertEquals("recent:/b", selectionAfterRemoving(items, "open:hash-a"))
-    }
-
-    @Test
-    fun `selection after removing an unknown id is nothing`() {
-        assertNull(selectionAfterRemoving(listOf(recent("a", "/a")), "recent:/nope"))
-        assertNull(selectionAfterRemoving(listOf(recent("a", "/a")), null))
-    }
-
-    private fun open(name: String, path: String, isCurrent: Boolean = false) = ProjectItem.Open(
+    private fun open(name: String, location: String, isCurrent: Boolean = false) = ProjectItem.Open(
         locationHash = "hash-$name",
         displayName = name,
-        path = path,
+        path = location,
+        location = location,
         branch = null,
         isCurrent = isCurrent,
     )
 
-    private fun recent(name: String, path: String) = ProjectItem.Recent(
+    private fun recent(name: String, location: String) = ProjectItem.Recent(
         displayName = name,
-        path = path,
+        path = location,
+        location = location,
         branch = null,
     )
 }

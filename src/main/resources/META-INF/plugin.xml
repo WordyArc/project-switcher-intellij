@@ -7,22 +7,27 @@
         Switch between open and recent projects from a compact keyboard-driven popup.<br/>
         <br/>
         Press <kbd>Alt+F2</kbd> to open Project Switcher, and again to close it. Type to filter
-        projects by name or path. Search tolerates common typos and supports keyboard-layout
-        correction.<br/>
+        projects by name or location. Search tolerates common typos and supports keyboard-layout
+        correction. Open projects are listed from the most recently used, and the previous project is
+        selected, so <kbd>Alt+F2</kbd> then <kbd>Enter</kbd> switches back to it.<br/>
         <br/>
         <b>Shortcuts</b>
         <ul>
             <li><kbd>Up</kbd> / <kbd>Down</kbd> — move the selection</li>
-            <li><kbd>Enter</kbd> — open the selected project following the IDE's
+            <li><kbd>Page Up</kbd> / <kbd>Page Down</kbd>, <kbd>Home</kbd> / <kbd>End</kbd> — jump through a
+                long list</li>
+            <li><kbd>Enter</kbd> or a click — open the selected project following the IDE's
                 <b>Open project in</b> setting</li>
-            <li><kbd>Shift+Enter</kbd> — open a recent project in the current window</li>
-            <li><kbd>Ctrl+Enter</kbd> — open a recent project in a new window</li>
-            <li><kbd>Cmd+W</kbd> on macOS, <kbd>Ctrl+W</kbd> elsewhere — close an open project
-                or remove a recent one</li>
+            <li><kbd>Shift+Enter</kbd> or <kbd>Shift</kbd>+click — open a recent project in the current
+                window</li>
+            <li><kbd>Ctrl+Enter</kbd> or <kbd>Ctrl</kbd>+click — open a recent project in a new window</li>
+            <li><kbd>Cmd+W</kbd> on macOS, <kbd>Ctrl+W</kbd> elsewhere — close an open project or remove a
+                recent one</li>
             <li><kbd>Esc</kbd> — clear the search, then close the popup</li>
         </ul>
         The window modifiers apply only to recent projects; selecting an already open project
-        focuses its window.<br/>
+        focuses its window. The footer of the popup shows the location of the selected project and the
+        keys that act on it.<br/>
         <br/>
         The shortcut can be changed under <b>Settings | Keymap | Switch Project</b>, and the action
         is also available from <b>Tools | Switch Project</b>.<br/>
@@ -36,6 +41,10 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.compose</depends>
+
+    <dependencies>
+        <module name="intellij.platform.frontend"/>
+    </dependencies>
 
     <resource-bundle>messages.ProjectSwitcherBundle</resource-bundle>
 
