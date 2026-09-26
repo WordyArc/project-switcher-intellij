@@ -53,13 +53,19 @@ internal fun ProjectSwitcherPopup(
     model: ProjectSwitcherModel,
     appearance: PopupAppearance,
     toggleShortcuts: List<KeyStroke>,
+    closeOnDelete: Boolean,
     onClose: () -> Unit,
     onResult: (SwitchOutcome) -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
-    val keys = remember(toggleShortcuts, appearance, listState) {
-        PopupKeys(toggle = toggleShortcuts, speedSearch = !appearance.searchField, pageSize = { listState.pageSize() })
+    val keys = remember(toggleShortcuts, appearance, closeOnDelete, listState) {
+        PopupKeys(
+            toggle = toggleShortcuts,
+            speedSearch = !appearance.searchField,
+            closeOnDelete = closeOnDelete,
+            pageSize = { listState.pageSize() },
+        )
     }
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -91,7 +97,7 @@ internal fun ProjectSwitcherPopup(
                 }
             }
 
-            if (appearance.hasFooter) Footer(model.selectedItem, appearance)
+            if (appearance.hasFooter) Footer(model.selectedItem, appearance, keys.close)
         }
 
         if (!appearance.searchField && model.query.isNotEmpty()) {
@@ -205,7 +211,7 @@ private fun ProjectList.revealStart(row: Int): Int =
     if (hasRecent && row == open.size + 1) open.size else row
 
 @Composable
-private fun Footer(item: ProjectItem?, appearance: PopupAppearance) {
+private fun Footer(item: ProjectItem?, appearance: PopupAppearance, close: KeyStroke) {
     val secondary = JewelTheme.globalColors.text.disabled
 
     Column(modifier = Modifier.fillMaxWidth().padding(top = Dimens.SectionSpacing, start = 6.dp, end = 6.dp)) {
@@ -214,14 +220,14 @@ private fun Footer(item: ProjectItem?, appearance: PopupAppearance) {
         }
 
         if (appearance.showShortcuts) {
-            val hints = remember(item) { hintsText(item) }
+            val hints = remember(item, close) { hintsText(item, close) }
             Text(hints, color = secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
 
-private fun hintsText(item: ProjectItem?): String =
-    hintsFor(item).joinToString(HINT_SEPARATOR) { hint ->
+private fun hintsText(item: ProjectItem?, close: KeyStroke): String =
+    hintsFor(item, close).joinToString(HINT_SEPARATOR) { hint ->
         "${KeymapUtil.getKeystrokeText(hint.stroke)} ${ProjectSwitcherBundle.message(hint.labelKey)}"
     }
 

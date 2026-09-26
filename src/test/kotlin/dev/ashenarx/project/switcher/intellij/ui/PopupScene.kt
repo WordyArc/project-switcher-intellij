@@ -1,6 +1,7 @@
 package dev.ashenarx.project.switcher.intellij.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.key.Key
@@ -15,10 +16,15 @@ import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.unit.Density
+import com.intellij.testFramework.common.timeoutRunBlocking
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import org.jetbrains.jewel.bridge.theme.SwingBridgeTheme
+import org.jetbrains.jewel.foundation.theme.JewelTheme
 import java.awt.event.InputEvent
 import javax.swing.JPanel
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.awt.event.KeyEvent as AwtKeyEvent
 
 internal class PopupScene(
@@ -27,13 +33,28 @@ internal class PopupScene(
     content: @Composable () -> Unit,
 ) : AutoCloseable {
 
+    private var themeLoaded = false
+
     private val scene = ImageComposeScene(width, height, Density(1f), Dispatchers.Unconfined) {
-        SwingBridgeTheme(content)
+        SwingBridgeTheme {
+            val loaded = JewelTheme.defaultTextStyle.fontFamily != null
+            SideEffect { themeLoaded = loaded }
+            if (loaded) content()
+        }
     }
 
     private val source = JPanel()
 
     private var nanos = 0L
+
+    init {
+        timeoutRunBlocking(THEME_TIMEOUT) {
+            while (!themeLoaded) {
+                frames(count = 1)
+                delay(THEME_POLL)
+            }
+        }
+    }
 
     fun frames(count: Int = 2) {
         repeat(count) {
@@ -136,5 +157,7 @@ internal class PopupScene(
         const val DEFAULT_WIDTH = 420
         const val DEFAULT_HEIGHT = 420
         const val FRAME_NANOS = 16_000_000L
+        val THEME_TIMEOUT = 10.seconds
+        val THEME_POLL = 10.milliseconds
     }
 }

@@ -35,7 +35,7 @@ immediately; recent projects follow the IDE's **Open project in** setting.
 | <kbd>Enter</kbd> or click                               | Open the selected project using the IDE setting         |
 | <kbd>Shift</kbd>+<kbd>Enter</kbd> or <kbd>Shift</kbd>+click | Open a recent project in the current window         |
 | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+click   | Open a recent project in a new window               |
-| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd>             | Close an open project or remove a recent project        |
+| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd>             | Close an open project or remove a recent project, or with <kbd>Delete</kbd> (see [Settings](#settings)) |
 | <kbd>Esc</kbd>                                          | Clear the search, then close the popup                  |
 
 The open-in-current-window and open-in-new-window modifiers apply only to recent projects. Selecting an already open
@@ -43,12 +43,16 @@ project focuses its window. Closing the current project hands the focus to the p
 
 ## Settings
 
-**Settings | Tools | Project Switcher** changes how the popup looks:
+**Settings | Tools | Project Switcher** changes how the popup looks and behaves:
 
 - **Show a search field above the list** puts a search field in place of the title. Without it, typing opens a speed
   search in the top left corner, as in Recent Files.
 - **Show the location of the selected project at the bottom** adds the selected project's path under the list.
 - **Show the shortcuts for the selected project at the bottom** lists the keys that act on the selection.
+- **Close or remove projects with** picks the keys that close an open project or remove a recent one:
+  <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd>, or <kbd>Delete</kbd> and <kbd>Backspace</kbd> instead. Delete and Backspace act
+  only while the search is empty: after erasing the search they close nothing until the selection moves, and a key held
+  down closes only one project.
 
 ## Change the Shortcut
 

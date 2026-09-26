@@ -13,6 +13,7 @@ The topmost section is published as the plugin's change notes.
 - Closing or removing a project from the popup no longer flashes the loading message, drops the icons or scrolls the list back to the top.
 - Search no longer matches the user home directory in project paths, ranks matches in the project name above matches in its location, and shows the location of a project that matched only there.
 - The bottom of the popup can show the location of the selected project and the keys that act on it, each turned on separately in <b>Settings | Tools | Project Switcher</b>.
+- <kbd>Delete</kbd> and <kbd>Backspace</kbd> can close and remove projects instead of <kbd>Cmd</kbd>+<kbd>W</kbd> and <kbd>Ctrl</kbd>+<kbd>W</kbd>, chosen in <b>Settings | Tools | Project Switcher</b>; they act only on an empty search, wait for the selection to move after the search is erased, and close one project per press.
 - <kbd>Shift</kbd>+click and <kbd>Ctrl</kbd>+click open a recent project in the current or a new window, the same as <kbd>Shift</kbd>+<kbd>Enter</kbd> and <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.
 - Pressing the Switch Project shortcut again closes the popup whatever shortcut the keymap assigns to it, not only <kbd>Alt</kbd>+<kbd>F2</kbd>.
 - The popup opens with the last known project list and sharp icons in its first frame and refreshes them in the background.

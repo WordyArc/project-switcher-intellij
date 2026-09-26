@@ -2,11 +2,13 @@ package dev.ashenarx.project.switcher.intellij.ui
 
 import androidx.compose.ui.input.key.Key
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.keymap.KeymapUtil
 import com.intellij.testFramework.common.ThreadLeakTracker
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.runInEdtAndWait
 import dev.ashenarx.project.switcher.intellij.model.OpenTarget
+import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import dev.ashenarx.project.switcher.intellij.model.ProjectList
 import dev.ashenarx.project.switcher.intellij.model.SwitchOutcome
 import kotlinx.coroutines.CoroutineScope
@@ -148,6 +150,21 @@ class ProjectSwitcherPopupTest {
     }
 
     @Test
+    fun `the shortcut hints name delete once it closes projects instead of the shortcut`() {
+        val model = loadedModel(threeProjects())
+
+        runInEdtAndWait {
+            popup(model, PopupAppearance(showShortcuts = true), closeOnDelete = true).use { scene ->
+                scene.frames()
+                val hints = scene.texts().single { "switch" in it }
+
+                assertTrue("${KeymapUtil.getKeystrokeText(deleteShortcut())} close" in hints, "expected the delete key in \"$hints\"")
+                assertFalse(KeymapUtil.getKeystrokeText(closeShortcut()) in hints, "the shortcut no longer closes, so it must not be offered")
+            }
+        }
+    }
+
+    @Test
     fun `moving the selection to a visible row does not scroll the list`() {
         val model = loadedModel(ProjectList(open = emptyList(), recent = manyRows()))
 
@@ -203,14 +220,43 @@ class ProjectSwitcherPopupTest {
         assertEquals(listOf(SwitchOutcome.Reopen(recent("beta"), OpenTarget.CurrentWindow)), outcomes)
     }
 
+    @ParameterizedTest(name = "search field: {0}")
+    @ValueSource(booleans = [false, true])
+    fun `with close on delete, backspace erases the search before it removes the row picked after it`(searchField: Boolean) {
+        val actions = FakeProjectActions(threeProjects())
+        val model = loadedModel(actions)
+
+        runInEdtAndWait {
+            popup(model, PopupAppearance(searchField = searchField), closeOnDelete = true).use { scene ->
+                scene.frames()
+
+                scene.type("gam")
+                repeat(4) { scene.press(Key.Backspace) }
+                scene.frames()
+
+                assertEquals("", model.query)
+                assertEquals(emptyList<ProjectItem.Open>(), actions.closed, "the press after the search was erased must not close a project")
+
+                scene.press(Key.DirectionDown)
+                scene.press(Key.Backspace)
+                scene.frames()
+
+                assertEquals(listOf(recent("beta").path), actions.forgotten)
+                assertNull(scene.boundsOf("beta"), "the removed row must leave the list")
+            }
+        }
+    }
+
     private fun threeProjects() = ProjectList(open = listOf(open("alpha")), recent = listOf(recent("beta"), recent("gamma")))
 
     private fun manyRows() = (0 until 40).map { recent("project%02d".format(it)) }
 
-    private fun loadedModel(projects: ProjectList): ProjectSwitcherModel = timeoutRunBlocking {
+    private fun loadedModel(projects: ProjectList): ProjectSwitcherModel = loadedModel(FakeProjectActions(projects))
+
+    private fun loadedModel(actions: FakeProjectActions): ProjectSwitcherModel = timeoutRunBlocking {
         val model = ProjectSwitcherModel(
             coroutineScope = scope,
-            actions = FakeProjectActions(projects),
+            actions = actions,
             uiContext = Dispatchers.Unconfined,
         )
         model.load()
@@ -218,11 +264,12 @@ class ProjectSwitcherPopupTest {
         model
     }
 
-    private fun popup(model: ProjectSwitcherModel, appearance: PopupAppearance) = PopupScene {
+    private fun popup(model: ProjectSwitcherModel, appearance: PopupAppearance, closeOnDelete: Boolean = false) = PopupScene {
         ProjectSwitcherPopup(
             model = model,
             appearance = appearance,
             toggleShortcuts = emptyList(),
+            closeOnDelete = closeOnDelete,
             onClose = {},
             onResult = { outcomes += it },
         )

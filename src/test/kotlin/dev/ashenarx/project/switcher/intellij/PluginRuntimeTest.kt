@@ -92,6 +92,9 @@ class PluginRuntimeTest {
             "settings.search.field.comment",
             "settings.show.location",
             "settings.show.shortcuts",
+            "settings.close.with",
+            "settings.close.with.delete",
+            "settings.close.with.delete.comment",
         ) + HINT_LABEL_KEYS
 
         for (key in keys) {

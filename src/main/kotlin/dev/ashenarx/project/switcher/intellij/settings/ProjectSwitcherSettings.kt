@@ -16,6 +16,7 @@ class ProjectSwitcherSettings : SimplePersistentStateComponent<ProjectSwitcherSe
         var searchField by property(false)
         var showLocation by property(false)
         var showShortcuts by property(false)
+        var closeOnDelete by property(false)
     }
 
     companion object {

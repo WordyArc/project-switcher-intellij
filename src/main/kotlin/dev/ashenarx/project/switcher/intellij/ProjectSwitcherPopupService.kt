@@ -46,7 +46,9 @@ internal class ProjectSwitcherPopupService(private val coroutineScope: Coroutine
         val popupScope = coroutineScope.childScope("Project Switcher popup")
         val model = ProjectSwitcherModel(popupScope, PlatformProjectActions(currentProject))
         model.load()
-        val appearance = ProjectSwitcherSettings.getInstance().state.toAppearance()
+        val options = ProjectSwitcherSettings.getInstance().state
+        val appearance = options.toAppearance()
+        val closeOnDelete = options.closeOnDelete
         val toggleShortcuts = keymapShortcutsOf(ProjectSwitchAction.ID)
 
         var popup: JBPopup? = null
@@ -59,6 +61,7 @@ internal class ProjectSwitcherPopupService(private val coroutineScope: Coroutine
                 model = model,
                 appearance = appearance,
                 toggleShortcuts = toggleShortcuts,
+                closeOnDelete = closeOnDelete,
                 onClose = { popup?.cancel() },
                 onResult = { result ->
                     outcome = result

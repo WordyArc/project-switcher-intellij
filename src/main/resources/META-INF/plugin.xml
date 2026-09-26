@@ -30,7 +30,8 @@
         <br/>
         Under <b>Settings | Tools | Project Switcher</b> the popup can show a search field above the list
         instead of the speed search, and the location of the selected project and the keys that act on it
-        at the bottom.<br/>
+        at the bottom. Projects can also be closed with <kbd>Delete</kbd> and <kbd>Backspace</kbd> instead
+        of <kbd>Cmd+W</kbd>.<br/>
         <br/>
         The shortcut can be changed under <b>Settings | Keymap | Switch Project</b>, and the action
         is also available from <b>Tools | Switch Project</b>.<br/>

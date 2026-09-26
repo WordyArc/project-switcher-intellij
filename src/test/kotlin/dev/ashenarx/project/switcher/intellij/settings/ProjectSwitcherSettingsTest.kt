@@ -14,6 +14,7 @@ class ProjectSwitcherSettingsTest {
         assertFalse(options.searchField, "the classic popup has a title and a speed search, not a field")
         assertFalse(options.showLocation, "the classic popup has no footer")
         assertFalse(options.showShortcuts, "the classic popup has no footer")
+        assertFalse(options.closeOnDelete, "the close shortcut closes projects, delete and backspace only edit the query")
     }
 
     @Test
@@ -21,6 +22,7 @@ class ProjectSwitcherSettingsTest {
         val options = ProjectSwitcherSettings.Options().apply {
             searchField = true
             showShortcuts = true
+            closeOnDelete = true
         }
 
         val restored = XmlSerializer.deserialize(XmlSerializer.serialize(options), ProjectSwitcherSettings.Options::class.java)

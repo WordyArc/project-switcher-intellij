@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.awt.event.InputEvent
 import javax.swing.KeyStroke
 import java.awt.event.KeyEvent as AwtKeyEvent
@@ -284,6 +286,36 @@ class PopupKeysTest {
     }
 
     @Test
+    fun `the delete key follows the platform`() {
+        assertEquals(KeyStroke.getKeyStroke(AwtKeyEvent.VK_BACK_SPACE, 0), deleteShortcut(mac = true), "the key labelled delete on a Mac")
+        assertEquals(KeyStroke.getKeyStroke(AwtKeyEvent.VK_DELETE, 0), deleteShortcut(mac = false))
+    }
+
+    @ParameterizedTest(name = "close on delete: {0}")
+    @ValueSource(booleans = [false, true])
+    fun `the key the hints show for closing is one that closes`(closeOnDelete: Boolean) = timeoutRunBlocking {
+        loadRows()
+        keys = PopupKeys(toggle = listOf(ALT_F2), closeOnDelete = closeOnDelete)
+        model.select(beta.id)
+
+        assertTrue(handle(event(keys.close)))
+
+        assertEquals(listOf(beta.path), actions.forgotten)
+    }
+
+    @Test
+    fun `with delete chosen the close shortcut no longer closes anything`() = timeoutRunBlocking {
+        loadRows()
+        keys = PopupKeys(toggle = listOf(ALT_F2), closeOnDelete = true)
+        model.select(beta.id)
+
+        handle(closeShortcut())
+
+        assertNothingRemoved("delete replaces the shortcut rather than joining it")
+        assertEquals("", model.query, "the shortcut must not be typed either")
+    }
+
+    @Test
     fun `a shortcut matches only with exactly its modifiers`() {
         assertTrue(event(Key.F2, alt = true).matches(ALT_F2))
         assertFalse(event(Key.F2, alt = true, shift = true).matches(ALT_F2), "an extra shift makes it another chord")
@@ -346,6 +378,116 @@ class PopupKeysTest {
         assertEquals(emptyList<String>(), actions.forgotten)
     }
 
+    @Test
+    fun `with close on delete, delete and backspace remove the selected project once the query is empty`() =
+        timeoutRunBlocking {
+            loadRows()
+            keys = PopupKeys(toggle = listOf(ALT_F2), closeOnDelete = true)
+            model.select(beta.id)
+
+            assertTrue(tap(Key.Backspace))
+            assertEquals(listOf(beta.path), actions.forgotten)
+            assertEquals(gamma.id, model.selectedId, "expected the row below the one that was removed")
+
+            assertTrue(tap(Key.Delete))
+            assertEquals(listOf(beta.path, gamma.path), actions.forgotten, "each separate press removes the next row")
+        }
+
+    @Test
+    fun `with close on delete, a query is still edited rather than a project closed`() = timeoutRunBlocking {
+        loadRows()
+        keys = PopupKeys(toggle = listOf(ALT_F2), closeOnDelete = true)
+        model.queryState.setTextAndPlaceCursorAtEnd("be")
+
+        assertTrue(tap(Key.Backspace))
+
+        assertEquals("b", model.query)
+        assertNothingRemoved("while there is a query the keys belong to it")
+    }
+
+    @Test
+    fun `after erasing the query delete closes nothing until the selection moves`() = timeoutRunBlocking {
+        loadRows()
+        keys = PopupKeys(toggle = listOf(ALT_F2), closeOnDelete = true)
+        model.queryState.setTextAndPlaceCursorAtEnd("b")
+
+        tap(Key.Backspace)
+        tap(Key.Backspace)
+        tap(Key.Delete)
+
+        assertEquals("", model.query)
+        assertNothingRemoved("a press too many while erasing must not close or remove a project")
+
+        press(Key.DirectionDown)
+        tap(Key.Backspace)
+
+        assertEquals(listOf(beta.path), actions.forgotten, "a row picked after erasing is fair game")
+    }
+
+    @Test
+    fun `after escape clears the query delete closes nothing until the selection moves`() = timeoutRunBlocking {
+        loadRows()
+        keys = PopupKeys(toggle = listOf(ALT_F2), closeOnDelete = true)
+        model.queryState.setTextAndPlaceCursorAtEnd("gam")
+
+        tap(Key.Escape)
+        tap(Key.Delete)
+
+        assertNothingRemoved("the selection fell back to the default row, which nobody picked")
+    }
+
+    @Test
+    fun `holding backspace erases the query and stops there`() = timeoutRunBlocking {
+        loadRows()
+        keys = PopupKeys(toggle = listOf(ALT_F2), closeOnDelete = true)
+        model.queryState.setTextAndPlaceCursorAtEnd("be")
+
+        repeat(5) { press(Key.Backspace) }
+        press(Key.Backspace, type = KeyEventType.KeyUp)
+
+        assertEquals("", model.query)
+        assertNothingRemoved("the auto-repeat of the erasing key must not go on to close projects")
+    }
+
+    @Test
+    fun `holding delete over an empty query closes one project, not one per repeat`() = timeoutRunBlocking {
+        loadRows()
+        keys = PopupKeys(toggle = listOf(ALT_F2), closeOnDelete = true)
+        model.select(beta.id)
+
+        repeat(3) { press(Key.Delete) }
+
+        assertEquals(listOf(beta.path), actions.forgotten)
+    }
+
+    @Test
+    fun `delete with a modifier never closes a project`() = timeoutRunBlocking {
+        loadRows()
+        keys = PopupKeys(toggle = listOf(ALT_F2), closeOnDelete = true)
+        model.select(beta.id)
+
+        tap(Key.Backspace, alt = true)
+        tap(Key.Delete, shift = true)
+
+        assertNothingRemoved("only a bare key closes, a chord may mean something else")
+    }
+
+    @Test
+    fun `delete hands back the current project the way the close shortcut does`() = timeoutRunBlocking {
+        val current = open("current", isCurrent = true)
+        val soleModel = modelOver(ProjectList(open = listOf(current), recent = emptyList()))
+        keys = PopupKeys(toggle = listOf(ALT_F2), closeOnDelete = true)
+
+        assertTrue(handle(event(Key.Backspace), soleModel))
+
+        assertEquals(listOf(SwitchOutcome.CloseCurrent(current, next = null)), closedCurrent)
+    }
+
+    private fun assertNothingRemoved(message: String) {
+        assertEquals(emptyList<ProjectItem.Open>(), actions.closed, message)
+        assertEquals(emptyList<String>(), actions.forgotten, message)
+    }
+
     private suspend fun loadRows() {
         model.load()
         awaitLoaded(model)
@@ -371,6 +513,14 @@ class PopupKeysTest {
     private fun closeShortcut(): KeyEvent =
         event(Key.W, ctrl = !SystemInfoRt.isMac, meta = SystemInfoRt.isMac)
 
+    private fun event(stroke: KeyStroke): KeyEvent = event(
+        key = Key(stroke.keyCode),
+        ctrl = stroke.modifiers and InputEvent.CTRL_DOWN_MASK != 0,
+        shift = stroke.modifiers and InputEvent.SHIFT_DOWN_MASK != 0,
+        alt = stroke.modifiers and InputEvent.ALT_DOWN_MASK != 0,
+        meta = stroke.modifiers and InputEvent.META_DOWN_MASK != 0,
+    )
+
     private fun press(
         key: Key,
         type: KeyEventType = KeyEventType.KeyDown,
@@ -379,6 +529,12 @@ class PopupKeysTest {
         alt: Boolean = false,
         char: Char? = null,
     ): Boolean = handle(event(key, type, ctrl, shift, alt, char = char))
+
+    private fun tap(key: Key, shift: Boolean = false, alt: Boolean = false): Boolean {
+        val handled = press(key, shift = shift, alt = alt)
+        press(key, type = KeyEventType.KeyUp, shift = shift, alt = alt)
+        return handled
+    }
 
     private fun event(
         key: Key,
