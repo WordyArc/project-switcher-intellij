@@ -206,9 +206,8 @@ jobs:
           COMMIT: ${{ needs.check.outputs.commit }}
         run: |
           branch=release/$VERSION
-          existing=$(gh api "repos/$GH_REPO/git/ref/heads/$branch" --jq .object.sha 2> /dev/null || true)
-          if [ -z "$existing" ]; then
-            gh api "repos/$GH_REPO/git/refs" -f ref="refs/heads/$branch" -f sha="$COMMIT" > /dev/null
+          if ! existing=$(gh api "repos/$GH_REPO/git/ref/heads/$branch" --jq .object.sha 2> /dev/null); then
+            gh api "repos/$GH_REPO/git/refs" -f ref="refs/heads/$branch" -f sha="$COMMIT" --silent
           elif [ "$existing" != "$COMMIT" ]; then
             echo "::error::$branch already exists at $existing, not at the released commit $COMMIT."
             exit 1
