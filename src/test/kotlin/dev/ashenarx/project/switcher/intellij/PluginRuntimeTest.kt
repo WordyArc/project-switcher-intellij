@@ -17,7 +17,6 @@ class PluginRuntimeTest {
 
     @Test
     fun `the notification group the opener reports failures through is registered`() {
-        // ProjectOpener.notifyOpenFailure dereferences this group; an unknown id yields null there.
         assertNotNull(
             NotificationGroupManager.getInstance().getNotificationGroup("Project Switcher"),
             "notificationGroup id in plugin.xml no longer matches ProjectOpener.NOTIFICATION_GROUP_ID",

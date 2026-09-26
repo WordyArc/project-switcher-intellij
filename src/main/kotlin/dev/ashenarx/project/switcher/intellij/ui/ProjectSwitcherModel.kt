@@ -42,13 +42,12 @@ internal class ProjectSwitcherModel(
     var projects: ProjectList by mutableStateOf(ProjectList.EMPTY)
         private set
 
-    // Keeping icons separate prevents each arrival from resetting effects keyed on the project list.
+    // Separate from projects so each icon arrival does not restart effects keyed on the list.
     val icons: SnapshotStateMap<String, Icon> = mutableStateMapOf()
 
     var loadState: ProjectLoadState by mutableStateOf(ProjectLoadState.LOADING)
         private set
 
-    /** Mirrored from the speed search overlay, which owns the text field the user types into. */
     var query: String by mutableStateOf("")
 
     private var choice: Choice? by mutableStateOf(null)
@@ -76,11 +75,7 @@ internal class ProjectSwitcherModel(
         if (query.isBlank()) null else rows.topMatch(matcher::degreeOrNull)
     }
 
-    /**
-     * Derived rather than assigned, so nothing has to notice that the rows changed and correct it
-     * afterwards. A hand-made [choice] outranks the query's top match only for as long as the
-     * ranking it was made against still holds.
-     */
+    // A hand-made choice beats the top match only while the ranking it was made against holds.
     val selectedId: String? by derivedStateOf {
         val ids = rows.all.map { it.id }
 
@@ -125,11 +120,6 @@ internal class ProjectSwitcherModel(
         }
     }
 
-    /**
-     * Picks up platform-side changes without the loading placeholder and icon reset of a full
-     * [load]. Branch names arrive this way: the platform reports none until its own background
-     * lookup finishes, then announces the result.
-     */
     fun refresh() {
         if (loadState != ProjectLoadState.READY) return
 
@@ -162,11 +152,7 @@ internal class ProjectSwitcherModel(
         select(moveSelection(rows.all, selectedId, delta))
     }
 
-    /**
-     * Removes the selected row, and returns the project the caller has to close itself. Closing the
-     * current project is the caller's to do, and only worth offering when no other project is open:
-     * otherwise the popup would leave the user with no window to switch to.
-     */
+    // The current project is returned for the caller to close, and only when it is the last one open.
     fun closeSelected(): ProjectItem.Open? {
         val selected = selectedItem ?: return null
 
@@ -178,7 +164,6 @@ internal class ProjectSwitcherModel(
         return null
     }
 
-    /** Reloads platform state because a closed project moves into the recent section. */
     private fun delete(item: ProjectItem) {
         choice = null
         pendingSelection = selectionAfterRemoving(rows.all, item.id)
@@ -205,11 +190,10 @@ internal class ProjectSwitcherModel(
         }
     }
 
-    /** Compose state is written on the EDT, and `any()` because a popup blocks the default modality. */
+    // any(): the popup blocks the default modality.
     private suspend fun <T> onEdt(block: () -> T): T =
         withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) { block() }
 
-    /** A hand-made selection, kept together with the ranking that was on screen when it was made. */
     private data class Choice(val id: String, val ranking: List<String>, val instead: String?)
 }
 

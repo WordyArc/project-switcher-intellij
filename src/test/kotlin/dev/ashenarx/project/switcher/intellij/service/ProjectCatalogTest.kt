@@ -19,16 +19,11 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-/**
- * Exercises [ProjectCatalog.collect] against real platform state: real open projects and real
- * [com.intellij.ide.ReopenProjectAction]s built by the platform's own provider. Stubbing the provider
- * instead would hide exactly the coupling this covers — path normalisation and recent ordering.
- */
 @TestApplication
 class ProjectCatalogTest {
 
     private companion object {
-        // The directory name becomes the project name; the casing is what the sorting test needs.
+        // The sorting test needs this casing.
         val zebra = projectFixture(tempPathFixture(subdirName = "Zebra"), openAfterCreation = true)
         val apple = projectFixture(tempPathFixture(subdirName = "apple"), openAfterCreation = true)
 
@@ -73,7 +68,6 @@ class ProjectCatalogTest {
 
     @Test
     fun `a project that is both open and recent is listed once, as open`() = timeoutRunBlocking {
-        // The platform lists open projects among the recent ones too; the popup must not show both.
         seedRecent(pathOf(apple.get()), name = "apple")
 
         val list = catalog.collect(currentProject = null)
@@ -157,7 +151,7 @@ class ProjectCatalogTest {
         assertTrue(list.open.any { it.displayName == "apple" }, "the project is still open, so it stays listed")
     }
 
-    /** Seeds one recent entry. Oldest first: the platform hands recents back in reverse. */
+    // Seed oldest first: the platform hands recents back in reverse.
     private fun seedRecent(path: String? = null, name: String): String {
         val resolved = path ?: "/tmp/project-switcher-test/$name"
 

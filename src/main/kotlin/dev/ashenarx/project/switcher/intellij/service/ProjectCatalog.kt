@@ -54,12 +54,7 @@ class ProjectCatalog {
         service<RecentProjectsManager>().removePath(path)
     }
 
-    /**
-     * A recent project's branch comes from a background caffeine cache that expires after a minute of no
-     * reads, and [ReopenProjectAction.branchName] reports null rather than waiting for a cold entry
-     * to load. The platform republishes this topic once the load lands, which is the only signal
-     * that the branches are worth reading again.
-     */
+    // branchName is null until the platform's background branch cache loads; this topic is the only signal it did.
     fun onRecentProjectsChanged(parent: Disposable, onChange: () -> Unit) {
         ApplicationManager.getApplication().messageBus.connect(parent).subscribe(
             RecentProjectsManager.RECENT_PROJECTS_CHANGE_TOPIC,

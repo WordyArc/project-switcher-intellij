@@ -6,10 +6,7 @@ import com.intellij.util.text.NameUtilCore
 import org.jetbrains.jewel.foundation.search.SpeedSearchMatcher
 import org.jetbrains.jewel.foundation.search.SpeedSearchMatcher.MatchResult
 
-/**
- * Uses the platform matcher instead of Jewel's port to retain keyboard-layout correction, typo
- * tolerance, and Pinyin matching.
- */
+// The platform matcher, not Jewel's port: only it fixes the keyboard layout, tolerates typos and matches Pinyin.
 internal class ProjectMatcher(query: String) : SpeedSearchMatcher {
 
     private val delegate: MinusculeMatcher? =

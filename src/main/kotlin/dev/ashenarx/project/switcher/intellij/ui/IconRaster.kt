@@ -5,12 +5,9 @@ import java.awt.image.BufferedImage
 import kotlin.math.max
 import javax.swing.Icon as SwingIcon
 
-/**
- * ProjectFileIcon derives two dimensions from the graphics device and transform. Those disagree on
- * an offscreen HiDPI canvas, shrinking the icon into one corner, so rasterize without a transform.
- */
+// On an offscreen HiDPI canvas with a transform, ProjectFileIcon shrinks into one corner.
 internal fun SwingIcon.rasterize(): BufferedImage {
-    @Suppress("UndesirableClassUsage") // A raw canvas is intended: no hidden HiDPI scaling wanted.
+    @Suppress("UndesirableClassUsage")
     val image = BufferedImage(max(1, iconWidth), max(1, iconHeight), BufferedImage.TYPE_INT_ARGB)
 
     val g = image.createGraphics()

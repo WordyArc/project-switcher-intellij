@@ -41,16 +41,13 @@ dependencies {
 }
 
 tasks.compileTestKotlin {
-    // Synthesizing a Compose KeyEvent without a real skiko event needs the internal factory.
     compilerOptions.optIn.add("androidx.compose.ui.InternalComposeUiApi")
 }
 
 tasks.test {
     useJUnitPlatform()
 
-    // The bundled Station plugin watches recent projects and, in a test IDE, dies looking up a class
-    // it only ships to its own test distribution. Its failure would be attributed to whichever test
-    // happens to be running when it fires.
+    // Station crashes in a test IDE on a class from its own test distribution, failing a random test.
     systemProperty("idea.suppressed.plugins.id", "com.jetbrains.station")
 }
 
@@ -76,8 +73,6 @@ intellijPlatform {
             untilBuild = providers.gradleProperty("pluginUntilBuild")
         }
 
-        // Inlined rather than extracted into a helper: a build script function reference cannot be
-        // stored in the configuration cache.
         changeNotes = providers.fileContents(layout.projectDirectory.file("CHANGELOG.md"))
             .asText
             .map { changelog ->

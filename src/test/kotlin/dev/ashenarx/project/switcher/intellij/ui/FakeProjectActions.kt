@@ -12,14 +12,12 @@ internal class FakeProjectActions(private var projects: ProjectList) : ProjectAc
 
     override suspend fun collect(currentProject: Project?): ProjectList = projects
 
-    /** Stands in for the platform changing its mind between two collects. */
     fun publish(projects: ProjectList) {
         this.projects = projects
     }
 
     override suspend fun loadIcons(paths: List<String>, emit: suspend (String, Icon) -> Unit) = Unit
 
-    /** A closed project leaves the open section for the recent one, as it does in the IDE. */
     override fun close(project: ProjectItem.Open) {
         closed += project
         projects = ProjectList(

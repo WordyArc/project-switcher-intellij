@@ -36,10 +36,7 @@ class ProjectIconLoader {
 
     private val warmedUp = AtomicBoolean()
 
-    /** Streams cached-size icons first, then replaces them with HiDPI versions as they load. */
     suspend fun loadIcons(paths: List<String>, emit: suspend (String, Icon) -> Unit) {
-        // getProjectIcon is only on the base class, but an IDE may replace the open service with an
-        // unrelated implementation. Keep the cast safe instead of using getInstanceEx().
         val recentManager = service<RecentProjectsManager>() as? RecentProjectsManagerBase
         if (recentManager == null) {
             thisLogger().debug("RecentProjectsManager is not a RecentProjectsManagerBase — no project icons")
@@ -51,7 +48,6 @@ class ProjectIconLoader {
         for (size in iconSizePasses(JBUIScale.sysScale())) {
             val probe = IconPassProbe(size, uniquePaths.size, MAX_CONCURRENT_LOADS)
 
-            // Finish the coarse pass before a later, crisp icon can be emitted.
             probe.pass {
                 coroutineScope {
                     for (path in uniquePaths) {
@@ -80,11 +76,7 @@ class ProjectIconLoader {
         return true
     }
 
-    /**
-     * Deferred project icons normally start loading when Swing paints them. Compose rasterization
-     * bypasses that trigger, so start the normal Swing lifecycle and wait until the icon settles.
-     * The timeout prevents one icon from blocking the next size pass.
-     */
+    // A DeferredIcon starts loading only when Swing paints it, which Compose rasterization never does.
     private suspend fun Icon.resolved(): Icon {
         val deferred = this as? DeferredIcon ?: return this
 
@@ -122,10 +114,7 @@ class ProjectIconLoader {
 
         private val ICON_POLL_INTERVAL = 10.milliseconds
 
-        /**
-         * Starts with the platform's cacheable 20 px size, then requests enough source pixels for
-         * HiDPI rasterization. [ReopenProjectAction.projectIcon] cannot provide the larger size.
-         */
+        // ReopenProjectAction.projectIcon is stuck at 20 px, too few source pixels for HiDPI.
         internal fun iconSizePasses(scale: Float): List<Int> {
             val crisp = ICON_SIZE * ceil(scale).toInt().coerceIn(1, MAX_RASTER_SCALE)
             return if (crisp == ICON_SIZE) listOf(ICON_SIZE) else listOf(ICON_SIZE, crisp)

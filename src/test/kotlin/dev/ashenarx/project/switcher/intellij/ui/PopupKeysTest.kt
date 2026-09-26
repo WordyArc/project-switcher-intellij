@@ -200,7 +200,6 @@ class PopupKeysTest {
 
     @Test
     fun `delete and backspace only ever edit the query`() = timeoutRunBlocking {
-        // A selected row and no query at all: the case that used to remove a project instead.
         loadRows()
         model.select(beta.id)
 

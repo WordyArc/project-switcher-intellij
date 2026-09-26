@@ -122,7 +122,6 @@ internal fun ProjectRow(
                     text = branch,
                     color = secondary,
                     maxLines = 1,
-                    // A branch is identified by its tail, so drop the `feature/` style prefix first.
                     overflow = TextOverflow.StartEllipsis,
                     modifier = Modifier.widthIn(max = Dimens.MaxBranchWidth),
                 )
@@ -193,10 +192,7 @@ private fun String.highlighted(ranges: List<IntRange>, style: SearchMatchStyle):
     }
 }
 
-/**
- * SwingPanel flickers in recycled rows, while Jewel icon keys cannot represent generated project
- * icons. Keep an empty slot until the asynchronously rasterized icon arrives.
- */
+// Not SwingPanel: it flickers in recycled rows. Not a Jewel icon key: it cannot hold a generated icon.
 @Composable
 private fun ProjectIcon(icon: SwingIcon?) {
     val painter = remember(icon) { icon?.toPainterOrNull() }

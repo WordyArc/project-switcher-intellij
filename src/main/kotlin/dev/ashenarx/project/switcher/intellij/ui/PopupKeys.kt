@@ -14,10 +14,6 @@ import dev.ashenarx.project.switcher.intellij.model.OpenTarget
 import dev.ashenarx.project.switcher.intellij.model.SwitchOutcome
 import org.jetbrains.jewel.ui.component.SpeedSearchScope
 
-/**
- * The slice of [SpeedSearchScope] the key handler needs. Narrowing it keeps the handler free of the
- * Compose UI tree, which a `SpeedSearchScope` can only be obtained from.
- */
 internal interface SpeedSearch {
     fun hideSearch(): Boolean
 

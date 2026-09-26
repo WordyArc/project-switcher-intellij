@@ -43,7 +43,6 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
         ProjectUtil.focusProjectWindow(project, true)
     }
 
-    /** Mirrors the platform action so frame bounds and `canClose` handlers are preserved. */
     fun close(item: ProjectItem.Open) {
         val project = openProjectOf(item) ?: return
 
@@ -60,10 +59,7 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
         ProjectManager.getInstance().openProjects
             .firstOrNull { !it.isDisposed && it.locationHash == item.locationHash }
 
-    /**
-     * ReopenProjectAction cannot force reuse of the current frame. Opening through the manager gives
-     * [OpenTarget.CurrentWindow] access to [OpenProjectTask.forceReuseFrame].
-     */
+    // Not ReopenProjectAction: it cannot force reuse of the current frame.
     fun reopen(item: ProjectItem.Recent, target: OpenTarget, contextProject: Project?) {
         val modality = ModalityState.current()
 
@@ -72,7 +68,7 @@ class ProjectOpener(private val coroutineScope: CoroutineScope) {
                 val file = Path.of(item.path).normalize()
 
                 if (withContext(Dispatchers.IO) { Files.notExists(file) }) {
-                    // The action is still worth replaying for a stale entry: its dialog offers to drop it.
+                    // For a stale entry the action is still worth it: its dialog offers to drop the entry.
                     val handled = withContext(Dispatchers.EDT + modality.asContextElement()) {
                         performReopenAction(item, contextProject)
                     }

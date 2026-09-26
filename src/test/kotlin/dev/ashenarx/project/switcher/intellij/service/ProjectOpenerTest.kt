@@ -67,8 +67,7 @@ class ProjectOpenerTest {
     @Test
     fun `a path that exists but cannot be opened is reported too`(@TestDisposable disposable: Disposable) =
         timeoutRunBlocking {
-            // Existing, so the missing-directory branch is skipped, yet nothing can open it: the
-            // platform hands back a null project and the failure would otherwise be silent.
+            // Skips the missing-directory branch; the platform then returns a null project silently.
             val file = tempDir.get().resolve("notes.txt").createFile()
             val item = recentItem(file, name = "Not A Project")
 
@@ -145,8 +144,7 @@ class ProjectOpenerTest {
                 withContext(Dispatchers.EDT) { opener.close(openItem(project)) }
 
                 assertFalse(project.isDisposed, "the veto must be honoured")
-                // updateLastProjectPath would have flipped this on, and the welcome frame would have
-                // been offered, for a project that is in fact still open.
+                // updateLastProjectPath would have flipped this on for a project that is still open.
                 assertFalse(info.opened, "cleanup must not run when the close was refused")
             } finally {
                 recents.clear()
@@ -160,7 +158,6 @@ class ProjectOpenerTest {
         val item = openItem(project)
         ProjectManagerEx.getInstanceEx().forceCloseProjectAsync(project, save = false)
 
-        // The popup's snapshot can outlive the project it describes; the opener must not act on it.
         withContext(Dispatchers.EDT) {
             opener.close(item)
             opener.focus(item)
@@ -174,7 +171,6 @@ class ProjectOpenerTest {
         try {
             val wrongHash = openItem(project).copy(locationHash = "not-the-right-hash")
 
-            // close() would dispose the project if it matched on something looser than the hash.
             withContext(Dispatchers.EDT) { opener.close(wrongHash) }
 
             assertFalse(project.isDisposed, "a mismatched location hash must not close anything")

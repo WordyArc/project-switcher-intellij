@@ -14,7 +14,6 @@ data class ProjectList(
     val hasRecent: Boolean get() = recent.isNotEmpty()
     val isEmpty: Boolean get() = all.isEmpty()
 
-    /** Equal scores keep their input order, so the platform's recent ordering survives ranking. */
     fun rankedBy(score: (String) -> Int?): ProjectList {
         return ProjectList(
             open = open.ranked(score),
@@ -22,7 +21,6 @@ data class ProjectList(
         )
     }
 
-    /** Compares the already-ranked section heads; ties favor an open project. */
     fun topMatch(score: (String) -> Int?): ProjectItem? =
         listOfNotNull(open.firstOrNull(), recent.firstOrNull())
             .maxByOrNull { score(it.searchText) ?: Int.MIN_VALUE }

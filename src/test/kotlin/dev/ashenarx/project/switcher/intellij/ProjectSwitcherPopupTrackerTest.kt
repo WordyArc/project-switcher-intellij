@@ -66,7 +66,6 @@ class ProjectSwitcherPopupTrackerTest {
         tracker.register(older.popup)
         tracker.register(newer.popup)
 
-        // The old popup's close event arrives after the new one already claimed the slot.
         older.notifyClosed()
 
         assertTrue(tracker.closeIfOpen(), "the newer popup must still be tracked")
@@ -74,7 +73,6 @@ class ProjectSwitcherPopupTrackerTest {
         assertEquals(0, older.cancelCount)
     }
 
-    /** [JBPopup] is far too wide to implement by hand, and only three of its methods matter here. */
     private class FakePopup {
         var disposed = false
         var cancelCount = 0
@@ -86,7 +84,6 @@ class ProjectSwitcherPopupTrackerTest {
             arrayOf(JBPopup::class.java),
         ) { proxy, method, args ->
             when (method.name) {
-                // A real popup disposes itself and notifies listeners as it cancels.
                 "cancel" -> {
                     cancelCount++
                     disposed = true

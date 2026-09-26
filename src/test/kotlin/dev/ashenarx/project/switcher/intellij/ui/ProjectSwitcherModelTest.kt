@@ -33,8 +33,7 @@ class ProjectSwitcherModelTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val model = ProjectSwitcherModel(currentProject = null, coroutineScope = scope)
 
-    // Every row is distinct from the others under at least one rule, so that a test asserting on one
-    // of them cannot be satisfied by a different rule accidentally returning the same row.
+    // Each row differs from the others under some rule, so no rule can pass a test by accident.
     private val firstRow = open("first")
     private val currentRow = open("current", isCurrent = true)
     private val middle = recent("middle")
@@ -135,7 +134,6 @@ class ProjectSwitcherModelTest {
         model.closeSelected()
         awaitRows(model) { rows -> rows.all.none { it.id == middle.id } }
 
-        // The next reload came back without `last` either, so the remembered id no longer resolves.
         actions.forget(last.path)
         model.refresh()
 
@@ -189,13 +187,13 @@ class ProjectSwitcherModelTest {
         model.load()
         assertEquals(ProjectLoadState.READY, awaitLoaded())
 
-        // A path no project owns, so only a wholesale reset of the map can remove it.
+        // No project owns this path, so only a wholesale reset can remove it.
         val probe = "/not/a/project"
         model.icons[probe] = StubIcon
 
         model.refresh()
 
-        // Poll rather than await, so a refresh that breaks either invariant midway is still caught.
+        // Polled, not awaited, to catch a refresh that breaks an invariant midway.
         repeat(50) {
             assertEquals(ProjectLoadState.READY, model.loadState, "a refresh must not show the loading placeholder")
             assertSame(StubIcon, model.icons[probe], "a refresh must keep the icons it already has")
@@ -225,7 +223,6 @@ class ProjectSwitcherModelTest {
     }
 }
 
-/** The same rows the platform reports once its background branch lookup lands. */
 private fun ProjectList.withBranches(): ProjectList = ProjectList(
     open = open.map { it.copy(branch = "main") },
     recent = recent.map { it.copy(branch = "main") },
