@@ -1,11 +1,19 @@
 <p align="center">
-  <img src="docs/images/logo.svg" width="112" height="112" alt="Project Switcher logo">
+  <img src="docs/images/logo.svg#gh-light-mode-only" width="112" height="112" alt="Project Switcher logo">
+  <img src="docs/images/logo-dark.svg#gh-dark-mode-only" width="112" height="112" alt="Project Switcher logo">
 </p>
 
 <h1 align="center">Project Switcher</h1>
 
 <p align="center">
   Use the keyboard to move between your open and recent IntelliJ Platform projects.
+</p>
+
+<p align="center">
+  <a href="https://plugins.jetbrains.com/plugin/33282-project-switcher"><img src="https://img.shields.io/jetbrains/plugin/v/33282?label=JetBrains%20Marketplace" alt="JetBrains Marketplace version"></a>
+  <a href="https://plugins.jetbrains.com/plugin/33282-project-switcher"><img src="https://img.shields.io/jetbrains/plugin/d/33282" alt="Downloads"></a>
+  <a href="https://github.com/WordyArc/project-switcher-intellij/actions/workflows/build.yml"><img src="https://github.com/WordyArc/project-switcher-intellij/actions/workflows/build.yml/badge.svg?branch=main" alt="Build"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
 </p>
 
 ---
@@ -19,6 +27,11 @@ Looking for another project? Start typing its name or location. Search handles c
 keyboard layout. Choosing an open project brings its window into focus immediately. For recent projects, the IDE's
 **Open project in** setting determines where they open.
 
+## Installation
+
+In the IDE, open **Settings | Plugins | Marketplace**, search for **Project Switcher** and click **Install**. You can
+also install it from its [JetBrains Marketplace page](https://plugins.jetbrains.com/plugin/33282-project-switcher).
+
 ## Screenshots
 
 ![Open projects followed by recent projects in the popup](docs/images/popup.png)
@@ -27,18 +40,18 @@ keyboard layout. Choosing an open project brings its window into focus immediate
 
 ## Shortcuts
 
-| Key                                                     | Action                                                  |
-|---------------------------------------------------------|---------------------------------------------------------|
-| <kbd>Alt</kbd>+<kbd>F2</kbd>                            | Open or close Project Switcher                          |
-| Type                                                    | Search project names and locations                      |
-| <kbd>Up</kbd> / <kbd>Down</kbd>                         | Select the previous or next row                         |
-| <kbd>Page Up</kbd> / <kbd>Page Down</kbd>               | Go back or forward one page                             |
-| <kbd>Home</kbd> / <kbd>End</kbd>                        | Jump to the first or last project                       |
-| <kbd>Enter</kbd> or click                               | Open the selection according to the IDE setting         |
-| <kbd>Shift</kbd>+<kbd>Enter</kbd> or <kbd>Shift</kbd>+click | Open a recent project in the current window         |
-| <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+click   | Open a recent project in a new window               |
-| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd>             | Close an open project or remove a recent entry; <kbd>Delete</kbd> is an option in [Settings](#settings) |
-| <kbd>Esc</kbd>                                          | Clear the query; with no query, dismiss the popup        |
+| Key                                                         | Action                                                                                                  |
+|-------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| <kbd>Alt</kbd>+<kbd>F2</kbd>                                | Open or close Project Switcher                                                                          |
+| Type                                                        | Search project names and locations                                                                      |
+| <kbd>Up</kbd> / <kbd>Down</kbd>                             | Select the previous or next row                                                                         |
+| <kbd>Page Up</kbd> / <kbd>Page Down</kbd>                   | Go back or forward one page                                                                             |
+| <kbd>Home</kbd> / <kbd>End</kbd>                            | Jump to the first or last project                                                                       |
+| <kbd>Enter</kbd> or click                                   | Open the selection according to the IDE setting                                                         |
+| <kbd>Shift</kbd>+<kbd>Enter</kbd> or <kbd>Shift</kbd>+click | Open a recent project in the current window                                                             |
+| <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+click   | Open a recent project in a new window                                                                   |
+| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>W</kbd>                 | Close an open project or remove a recent entry; <kbd>Delete</kbd> is an option in [Settings](#settings) |
+| <kbd>Esc</kbd>                                              | Clear the query; with no query, dismiss the popup                                                       |
 
 Only recent projects use the current-window and new-window modifiers. An open project always receives focus in its
 existing window. If you close the current project, focus returns to the one you used before it.
@@ -56,15 +69,24 @@ Configure the popup in **Settings | Tools | Project Switcher**:
   require an empty search. If you use them to erase a query, you must move the selection before they can close a
   project. Holding either key down closes just one project.
 
-## Change the Shortcut
+## Changing the shortcut
 
-Find **Switch Project** in **Settings | Keymap** to assign your own shortcut. You can also run it from
-**Tools | Switch Project**.
+Find **Switch Project** in **Settings | Keymap** to assign your own shortcut. You can also run it from **Tools | Switch
+Project**.
 
 ## Requirements
 
-- An IntelliJ Platform IDE on the 2026.2 branch, including IntelliJ IDEA, PyCharm, WebStorm, GoLand and Rider.
-  Only platform-level modules are required, so other IDEs on that branch are supported too.
+- An IntelliJ Platform IDE on the 2026.2 or 2026.3 branch, including IntelliJ IDEA, PyCharm, WebStorm, GoLand and
+  Rider. The plugin depends only on platform-level modules, so other IDEs on those branches work too.
+
+## Building from source
+
+```sh
+./gradlew buildPlugin
+```
+
+The plugin ZIP appears in `build/distributions`. Install it with **Settings | Plugins | ⚙ | Install Plugin from
+Disk**. Gradle downloads the required JDK on its own. Run the tests with `./gradlew test`.
 
 ## License
 
