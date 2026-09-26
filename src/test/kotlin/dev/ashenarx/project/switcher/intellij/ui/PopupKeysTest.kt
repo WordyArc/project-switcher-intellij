@@ -220,11 +220,12 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `a bare F2 goes to the search field`() = timeoutRunBlocking {
+    fun `a bare F2 is neither the toggle nor typed`() = timeoutRunBlocking {
         loadRows()
 
         assertFalse(press(Key.F2))
         assertEquals(0, closed)
+        assertEquals("", model.query)
     }
 
     @Test
@@ -241,21 +242,33 @@ class PopupKeysTest {
     }
 
     @Test
-    fun `printable keys go to the search field`() = timeoutRunBlocking {
+    fun `printable keys type into the query when the popup has no search field`() = timeoutRunBlocking {
         loadRows()
 
-        assertFalse(press(Key.A))
+        assertTrue(press(Key.G, char = 'g'))
+        assertTrue(press(Key.A, char = 'a'))
+
+        assertEquals("ga", model.query, "the popup itself is the speed search")
     }
 
     @Test
-    fun `delete and backspace only ever edit the query`() = timeoutRunBlocking {
+    fun `printable keys are left to the search field when it is shown`() = timeoutRunBlocking {
+        loadRows()
+        keys = PopupKeys(toggle = listOf(ALT_F2), speedSearch = false)
+
+        assertFalse(press(Key.A, char = 'a'), "the focused field types the character itself")
+        assertEquals("", model.query)
+    }
+
+    @Test
+    fun `delete and backspace never remove a project`() = timeoutRunBlocking {
         loadRows()
         model.select(beta.id)
 
-        assertFalse(press(Key.Backspace))
-        assertFalse(press(Key.Delete))
+        press(Key.Backspace)
+        press(Key.Delete)
 
-        assertEquals(emptyList<String>(), actions.forgotten, "both keys belong to the search field")
+        assertEquals(emptyList<String>(), actions.forgotten, "both keys edit the query, removal has its own shortcut")
     }
 
     @Test
@@ -324,10 +337,12 @@ class PopupKeysTest {
         }
 
     @Test
-    fun `a bare W goes to the search field`() = timeoutRunBlocking {
+    fun `a bare W is typed, not taken for the close shortcut`() = timeoutRunBlocking {
         loadRows()
 
-        assertFalse(press(Key.W))
+        assertTrue(press(Key.W, char = 'w'))
+
+        assertEquals("w", model.query)
         assertEquals(emptyList<String>(), actions.forgotten)
     }
 
@@ -362,7 +377,8 @@ class PopupKeysTest {
         ctrl: Boolean = false,
         shift: Boolean = false,
         alt: Boolean = false,
-    ): Boolean = handle(event(key, type, ctrl, shift, alt))
+        char: Char? = null,
+    ): Boolean = handle(event(key, type, ctrl, shift, alt, char = char))
 
     private fun event(
         key: Key,
@@ -371,9 +387,11 @@ class PopupKeysTest {
         shift: Boolean = false,
         alt: Boolean = false,
         meta: Boolean = false,
+        char: Char? = null,
     ): KeyEvent = KeyEvent(
         key = key,
         type = type,
+        codePoint = char?.code ?: 0,
         isCtrlPressed = ctrl,
         isShiftPressed = shift,
         isAltPressed = alt,

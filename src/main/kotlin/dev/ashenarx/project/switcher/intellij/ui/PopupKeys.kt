@@ -20,6 +20,7 @@ import java.awt.event.KeyEvent as AwtKeyEvent
 internal class PopupKeys(
     val toggle: List<KeyStroke> = emptyList(),
     val close: KeyStroke = closeShortcut(),
+    val speedSearch: Boolean = true,
     val pageSize: () -> Int = { 1 },
 )
 
@@ -52,7 +53,7 @@ internal fun handleKeyEvent(
         Key.Enter, Key.NumPadEnter -> model.selectedItem?.let { onResult(SwitchOutcome.of(it, event.openTarget())) }
         Key.Escape -> if (!model.clearQuery()) onClose()
         Key.Tab -> Unit
-        else -> return false
+        else -> return keys.speedSearch && model.queryState.typeSpeedSearchKey(event)
     }
     return true
 }

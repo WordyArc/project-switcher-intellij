@@ -5,13 +5,14 @@ The topmost section is published as the plugin's change notes.
 ## 1.*.*
 
 - The plugin installs on 2026.3 EAP, where reopening a recent project used to be rejected as incompatible.
-- Typed text goes into a search field at the top of the popup, and <kbd>Enter</kbd> opens the project matching everything typed so far, even when the keys arrive faster than the list redraws.
+- <kbd>Enter</kbd> opens the project matching everything typed so far, even when the keys arrive faster than the list redraws.
+- A search field above the list can take the place of the speed search; it is turned on in <b>Settings | Tools | Project Switcher</b>.
 - Open projects are listed from the most recently used, and the previous project is selected when the popup opens, so <kbd>Alt</kbd>+<kbd>F2</kbd> followed by <kbd>Enter</kbd> switches back to it.
 - <kbd>Cmd</kbd>+<kbd>W</kbd> on macOS and <kbd>Ctrl</kbd>+<kbd>W</kbd> elsewhere closes the current project even while other projects are open, and hands the focus to the one used before it.
 - Moving the selection scrolls the list only when the selected row would leave the view, and <kbd>Page Up</kbd>, <kbd>Page Down</kbd>, <kbd>Home</kbd> and <kbd>End</kbd> jump through a long list, which now has a scrollbar.
 - Closing or removing a project from the popup no longer flashes the loading message, drops the icons or scrolls the list back to the top.
 - Search no longer matches the user home directory in project paths, ranks matches in the project name above matches in its location, and shows the location of a project that matched only there.
-- A footer shows the location of the selected project and the keys that act on it.
+- The bottom of the popup can show the location of the selected project and the keys that act on it, each turned on separately in <b>Settings | Tools | Project Switcher</b>.
 - <kbd>Shift</kbd>+click and <kbd>Ctrl</kbd>+click open a recent project in the current or a new window, the same as <kbd>Shift</kbd>+<kbd>Enter</kbd> and <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.
 - Pressing the Switch Project shortcut again closes the popup whatever shortcut the keymap assigns to it, not only <kbd>Alt</kbd>+<kbd>F2</kbd>.
 - The popup opens with the last known project list and sharp icons in its first frame and refreshes them in the background.

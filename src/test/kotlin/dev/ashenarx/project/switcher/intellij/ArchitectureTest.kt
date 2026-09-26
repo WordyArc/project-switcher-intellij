@@ -35,7 +35,7 @@ class ArchitectureTest {
     fun `the model depends on neither the UI toolkit nor the services`() {
         assertEquals(
             emptyMap<String, List<String>>(),
-            violations(MODEL, forbidden = listOf(SERVICE, UI, "androidx/compose/", "org/jetbrains/jewel/", "javax/swing/", "java/awt/")),
+            violations(MODEL, forbidden = listOf(SERVICE, UI, SETTINGS, "androidx/compose/", "org/jetbrains/jewel/", "javax/swing/", "java/awt/")),
             "model/ holds plain types; UI and platform services depend on it, not the other way round",
         )
     }
@@ -44,8 +44,17 @@ class ArchitectureTest {
     fun `services do not reach into the UI`() {
         assertEquals(
             emptyMap<String, List<String>>(),
-            violations(SERVICE, forbidden = listOf(UI, "androidx/compose/", "org/jetbrains/jewel/")),
+            violations(SERVICE, forbidden = listOf(UI, SETTINGS, "androidx/compose/", "org/jetbrains/jewel/")),
             "service/ talks to the platform and returns model types and images, never Compose state",
+        )
+    }
+
+    @Test
+    fun `settings are read by the root package only`() {
+        assertEquals(
+            emptyMap<String, List<String>>(),
+            violations(UI, forbidden = listOf(SETTINGS)) + violations(SETTINGS, forbidden = listOf(MODEL, SERVICE, UI)),
+            "the popup gets a PopupAppearance from the root, so it can be shown in any look without the platform",
         )
     }
 
@@ -124,6 +133,7 @@ class ArchitectureTest {
         const val MODEL = "${ROOT}model/"
         const val SERVICE = "${ROOT}service/"
         const val UI = "${ROOT}ui/"
+        const val SETTINGS = "${ROOT}settings/"
 
         val COMPILER_GENERATED = setOf("androidx/compose/runtime/internal/StabilityInferred")
     }

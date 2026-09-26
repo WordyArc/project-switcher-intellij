@@ -15,8 +15,7 @@ Project Switcher is an IntelliJ Platform plugin for quickly switching between op
 Press <kbd>Alt</kbd>+<kbd>F2</kbd> and type to filter projects by name or location. Search tolerates common typos and
 supports keyboard-layout correction. Open projects are listed from the most recently used, and the previous project is
 selected, so <kbd>Alt</kbd>+<kbd>F2</kbd> then <kbd>Enter</kbd> switches back to it. Open projects are focused
-immediately; recent projects follow the IDE's **Open project in** setting. The footer shows the location of the selected
-project and the keys that act on it.
+immediately; recent projects follow the IDE's **Open project in** setting.
 
 ## Screenshots
 
@@ -41,6 +40,15 @@ project and the keys that act on it.
 
 The open-in-current-window and open-in-new-window modifiers apply only to recent projects. Selecting an already open
 project focuses its window. Closing the current project hands the focus to the project used before it.
+
+## Settings
+
+**Settings | Tools | Project Switcher** changes how the popup looks:
+
+- **Show a search field above the list** puts a search field in place of the title. Without it, typing opens a speed
+  search in the top left corner, as in Recent Files.
+- **Show the location of the selected project at the bottom** adds the selected project's path under the list.
+- **Show the shortcuts for the selected project at the bottom** lists the keys that act on the selection.
 
 ## Change the Shortcut
 

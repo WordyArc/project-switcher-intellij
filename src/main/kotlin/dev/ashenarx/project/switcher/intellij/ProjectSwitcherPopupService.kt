@@ -17,8 +17,10 @@ import com.intellij.util.ui.UIUtil
 import dev.ashenarx.project.switcher.intellij.model.SwitchOutcome
 import dev.ashenarx.project.switcher.intellij.service.ProjectCatalog
 import dev.ashenarx.project.switcher.intellij.service.ProjectOpener
+import dev.ashenarx.project.switcher.intellij.settings.ProjectSwitcherSettings
 import dev.ashenarx.project.switcher.intellij.ui.DEFAULT_POPUP_SIZE
 import dev.ashenarx.project.switcher.intellij.ui.PlatformProjectActions
+import dev.ashenarx.project.switcher.intellij.ui.PopupAppearance
 import dev.ashenarx.project.switcher.intellij.ui.ProjectSwitcherModel
 import dev.ashenarx.project.switcher.intellij.ui.ProjectSwitcherPopup
 import dev.ashenarx.project.switcher.intellij.ui.popupSizeFor
@@ -44,6 +46,7 @@ internal class ProjectSwitcherPopupService(private val coroutineScope: Coroutine
         val popupScope = coroutineScope.childScope("Project Switcher popup")
         val model = ProjectSwitcherModel(popupScope, PlatformProjectActions(currentProject))
         model.load()
+        val appearance = ProjectSwitcherSettings.getInstance().state.toAppearance()
         val toggleShortcuts = keymapShortcutsOf(ProjectSwitchAction.ID)
 
         var popup: JBPopup? = null
@@ -54,6 +57,7 @@ internal class ProjectSwitcherPopupService(private val coroutineScope: Coroutine
         val panel = JewelComposePanel {
             ProjectSwitcherPopup(
                 model = model,
+                appearance = appearance,
                 toggleShortcuts = toggleShortcuts,
                 onClose = { popup?.cancel() },
                 onResult = { result ->
@@ -96,7 +100,7 @@ internal class ProjectSwitcherPopupService(private val coroutineScope: Coroutine
             .createComponentPopupBuilder(panel, panel.composeFocusTarget())
             .setRequestFocus(true)
             .setFocusable(true)
-            // The search field clears its query on the first Escape and closes on the next one.
+            // Compose speed search clears its query on the first Escape and closes on the next one.
             .setCancelKeyEnabled(false)
             .setCancelOnClickOutside(true)
             .setCancelOnOtherWindowOpen(true)
@@ -113,3 +117,9 @@ internal fun keymapShortcutsOf(actionId: String): List<KeyStroke> =
         .filterIsInstance<KeyboardShortcut>()
         .filter { it.secondKeyStroke == null }
         .map { it.firstKeyStroke }
+
+private fun ProjectSwitcherSettings.Options.toAppearance() = PopupAppearance(
+    searchField = searchField,
+    showLocation = showLocation,
+    showShortcuts = showShortcuts,
+)

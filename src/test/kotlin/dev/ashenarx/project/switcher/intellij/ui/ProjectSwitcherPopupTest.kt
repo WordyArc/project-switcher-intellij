@@ -15,12 +15,15 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 @TestApplication
 class ProjectSwitcherPopupTest {
@@ -39,11 +42,44 @@ class ProjectSwitcherPopupTest {
     }
 
     @Test
-    fun `typed text narrows the list`() {
-        val model = loadedModel(ProjectList(open = listOf(open("alpha")), recent = listOf(recent("beta"), recent("gamma"))))
+    fun `by default the popup shows its title and a speed search appears only once typing starts`() {
+        val model = loadedModel(threeProjects())
 
         runInEdtAndWait {
-            popup(model).use { scene ->
+            popup(model, PopupAppearance()).use { scene ->
+                scene.frames()
+                assertNotNull(scene.boundsOf("Project Switcher"), "the classic popup is titled like Recent Files")
+                assertNull(scene.boundsOf("gam"), "nothing has been typed yet, so there is no speed search")
+
+                scene.type("gam")
+                scene.frames()
+
+                assertNotNull(scene.boundsOf("gam"), "the speed search shows what was typed")
+            }
+        }
+    }
+
+    @Test
+    fun `the search field takes the place of the title when the setting is on`() {
+        val model = loadedModel(threeProjects())
+
+        runInEdtAndWait {
+            popup(model, PopupAppearance(searchField = true)).use { scene ->
+                scene.frames()
+
+                assertNull(scene.boundsOf("Project Switcher"))
+                assertNotNull(scene.boundsOf("Search projects"), "an empty field says what it is for")
+            }
+        }
+    }
+
+    @ParameterizedTest(name = "search field: {0}")
+    @ValueSource(booleans = [false, true])
+    fun `typed text narrows the list`(searchField: Boolean) {
+        val model = loadedModel(threeProjects())
+
+        runInEdtAndWait {
+            popup(model, PopupAppearance(searchField = searchField)).use { scene ->
                 scene.frames()
 
                 scene.type("gam")
@@ -55,13 +91,13 @@ class ProjectSwitcherPopupTest {
         }
     }
 
-    @Test
-    fun `enter opens what was typed even when the keys arrive before the next frame`() {
-        val gamma = recent("gamma")
-        val model = loadedModel(ProjectList(open = listOf(open("alpha")), recent = listOf(recent("beta"), gamma)))
+    @ParameterizedTest(name = "search field: {0}")
+    @ValueSource(booleans = [false, true])
+    fun `enter opens what was typed even when the keys arrive before the next frame`(searchField: Boolean) {
+        val model = loadedModel(threeProjects())
 
         runInEdtAndWait {
-            popup(model).use { scene ->
+            popup(model, PopupAppearance(searchField = searchField)).use { scene ->
                 scene.frames()
 
                 scene.type("gamma")
@@ -70,10 +106,45 @@ class ProjectSwitcherPopupTest {
         }
 
         assertEquals(
-            listOf(SwitchOutcome.Reopen(gamma, OpenTarget.Ask)),
+            listOf(SwitchOutcome.Reopen(recent("gamma"), OpenTarget.Ask)),
             outcomes,
             "Enter must act on the text already typed, not on the query of an earlier frame",
         )
+    }
+
+    @Test
+    fun `the footer is off by default`() {
+        val model = loadedModel(threeProjects())
+
+        runInEdtAndWait {
+            popup(model, PopupAppearance()).use { scene ->
+                scene.frames()
+
+                assertNull(scene.boundsOf("~/projects/alpha"), "the location belongs to an opt-in footer")
+                assertFalse(scene.texts().any { "switch" in it }, "the shortcut hints belong to an opt-in footer")
+            }
+        }
+    }
+
+    @Test
+    fun `the footer shows the location and the shortcuts each under its own setting`() {
+        val model = loadedModel(threeProjects())
+
+        runInEdtAndWait {
+            popup(model, PopupAppearance(showLocation = true)).use { scene ->
+                scene.frames()
+
+                assertNotNull(scene.boundsOf("~/projects/alpha"))
+                assertFalse(scene.texts().any { "switch" in it }, "the hints have a setting of their own")
+            }
+
+            popup(model, PopupAppearance(showShortcuts = true)).use { scene ->
+                scene.frames()
+
+                assertNull(scene.boundsOf("~/projects/alpha"), "the location has a setting of its own")
+                assertTrue(scene.texts().any { "switch" in it }, "expected the hints for the selected open project")
+            }
+        }
     }
 
     @Test
@@ -81,7 +152,7 @@ class ProjectSwitcherPopupTest {
         val model = loadedModel(ProjectList(open = emptyList(), recent = manyRows()))
 
         runInEdtAndWait {
-            popup(model).use { scene ->
+            popup(model, PopupAppearance()).use { scene ->
                 scene.frames()
                 val before = checkNotNull(scene.boundsOf("project00")) { "the first row must be on screen" }
 
@@ -102,7 +173,7 @@ class ProjectSwitcherPopupTest {
         val model = loadedModel(ProjectList(open = emptyList(), recent = manyRows()))
 
         runInEdtAndWait {
-            popup(model).use { scene ->
+            popup(model, PopupAppearance(showLocation = true)).use { scene ->
                 scene.frames()
 
                 scene.press(Key.MoveEnd)
@@ -118,11 +189,10 @@ class ProjectSwitcherPopupTest {
 
     @Test
     fun `a click with shift opens a recent project in the current window`() {
-        val beta = recent("beta")
-        val model = loadedModel(ProjectList(open = listOf(open("alpha")), recent = listOf(beta)))
+        val model = loadedModel(threeProjects())
 
         runInEdtAndWait {
-            popup(model).use { scene ->
+            popup(model, PopupAppearance()).use { scene ->
                 scene.frames()
 
                 scene.click("beta", shift = true)
@@ -130,8 +200,10 @@ class ProjectSwitcherPopupTest {
             }
         }
 
-        assertEquals(listOf(SwitchOutcome.Reopen(beta, OpenTarget.CurrentWindow)), outcomes)
+        assertEquals(listOf(SwitchOutcome.Reopen(recent("beta"), OpenTarget.CurrentWindow)), outcomes)
     }
+
+    private fun threeProjects() = ProjectList(open = listOf(open("alpha")), recent = listOf(recent("beta"), recent("gamma")))
 
     private fun manyRows() = (0 until 40).map { recent("project%02d".format(it)) }
 
@@ -146,7 +218,13 @@ class ProjectSwitcherPopupTest {
         model
     }
 
-    private fun popup(model: ProjectSwitcherModel) = PopupScene {
-        ProjectSwitcherPopup(model = model, toggleShortcuts = emptyList(), onClose = {}, onResult = { outcomes += it })
+    private fun popup(model: ProjectSwitcherModel, appearance: PopupAppearance) = PopupScene {
+        ProjectSwitcherPopup(
+            model = model,
+            appearance = appearance,
+            toggleShortcuts = emptyList(),
+            onClose = {},
+            onResult = { outcomes += it },
+        )
     }
 }

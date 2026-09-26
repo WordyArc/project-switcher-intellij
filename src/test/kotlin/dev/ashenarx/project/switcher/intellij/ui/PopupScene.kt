@@ -85,6 +85,8 @@ internal class PopupScene(
         )
     }
 
+    fun texts(): List<String> = scene.semanticsOwners.flatMap { it.unmergedRootSemanticsNode.texts() }
+
     fun boundsOf(text: String): Rect? =
         scene.semanticsOwners.firstNotNullOfOrNull { it.unmergedRootSemanticsNode.find(text) }?.boundsInRoot
 
@@ -119,6 +121,9 @@ internal class PopupScene(
             (if (shift) InputEvent.SHIFT_DOWN_MASK else 0) or
             (if (alt) InputEvent.ALT_DOWN_MASK else 0) or
             (if (meta) InputEvent.META_DOWN_MASK else 0)
+
+    private fun SemanticsNode.texts(): List<String> =
+        config.getOrNull(SemanticsProperties.Text).orEmpty().map { it.text } + children.flatMap { it.texts() }
 
     private fun SemanticsNode.find(text: String): SemanticsNode? {
         val texts = config.getOrNull(SemanticsProperties.Text).orEmpty()

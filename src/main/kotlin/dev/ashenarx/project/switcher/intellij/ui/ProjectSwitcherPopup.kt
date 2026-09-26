@@ -1,5 +1,6 @@
 package dev.ashenarx.project.switcher.intellij.ui
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,6 +27,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.intellij.openapi.keymap.KeymapUtil
@@ -48,48 +51,69 @@ private const val HINT_SEPARATOR = "   "
 @Composable
 internal fun ProjectSwitcherPopup(
     model: ProjectSwitcherModel,
+    appearance: PopupAppearance,
     toggleShortcuts: List<KeyStroke>,
     onClose: () -> Unit,
     onResult: (SwitchOutcome) -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
-    val keys = remember(toggleShortcuts, listState) {
-        PopupKeys(toggle = toggleShortcuts, pageSize = { listState.pageSize() })
+    val keys = remember(toggleShortcuts, appearance, listState) {
+        PopupKeys(toggle = toggleShortcuts, speedSearch = !appearance.searchField, pageSize = { listState.pageSize() })
     }
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(
-                horizontal = Dimens.PopupPaddingHorizontal,
-                vertical = Dimens.PopupPaddingVertical,
-            )
-            .onPreviewKeyEvent { event -> handleKeyEvent(event, model, keys, onClose, onResult) }
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    horizontal = Dimens.PopupPaddingHorizontal,
+                    vertical = Dimens.PopupPaddingVertical,
+                )
+                .onPreviewKeyEvent { event -> handleKeyEvent(event, model, keys, onClose, onResult) }
+                .then(if (appearance.searchField) Modifier else Modifier.focusRequester(focusRequester).focusable())
+        ) {
+            Header(query = model.queryState, searchField = appearance.searchField, focusRequester = focusRequester)
+
+            Spacer(Modifier.height(Dimens.SectionSpacing))
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when (model.loadState) {
+                    ProjectLoadState.LOADING -> LoadingMessage()
+                    ProjectLoadState.ERROR -> CenteredMessage(ProjectSwitcherBundle.message("popup.error"))
+                    ProjectLoadState.READY -> if (model.rows.isEmpty) {
+                        CenteredMessage(ProjectSwitcherBundle.message("popup.empty"))
+                    } else {
+                        ProjectRows(model = model, listState = listState, onResult = onResult)
+                    }
+                }
+            }
+
+            if (appearance.hasFooter) Footer(model.selectedItem, appearance)
+        }
+
+        if (!appearance.searchField && model.query.isNotEmpty()) {
+            SpeedSearchPopup(query = model.query, hasMatches = !model.rows.isEmpty)
+        }
+    }
+}
+
+@Composable
+private fun Header(query: TextFieldState, searchField: Boolean, focusRequester: FocusRequester) {
+    if (searchField) {
         TextField(
-            state = model.queryState,
+            state = query,
             modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             placeholder = { Text(ProjectSwitcherBundle.message("popup.search.placeholder")) },
         )
-
-        Spacer(Modifier.height(Dimens.SectionSpacing))
-
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when (model.loadState) {
-                ProjectLoadState.LOADING -> LoadingMessage()
-                ProjectLoadState.ERROR -> CenteredMessage(ProjectSwitcherBundle.message("popup.error"))
-                ProjectLoadState.READY -> if (model.rows.isEmpty) {
-                    CenteredMessage(ProjectSwitcherBundle.message("popup.empty"))
-                } else {
-                    ProjectRows(model = model, listState = listState, onResult = onResult)
-                }
-            }
-        }
-
-        Footer(model.selectedItem)
+    } else {
+        Text(
+            text = ProjectSwitcherBundle.message("popup.title"),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -181,19 +205,25 @@ private fun ProjectList.revealStart(row: Int): Int =
     if (hasRecent && row == open.size + 1) open.size else row
 
 @Composable
-private fun Footer(item: ProjectItem?) {
+private fun Footer(item: ProjectItem?, appearance: PopupAppearance) {
     val secondary = JewelTheme.globalColors.text.disabled
-    val hints = remember(item) {
-        hintsFor(item).joinToString(HINT_SEPARATOR) { hint ->
-            "${KeymapUtil.getKeystrokeText(hint.stroke)} ${ProjectSwitcherBundle.message(hint.labelKey)}"
-        }
-    }
 
     Column(modifier = Modifier.fillMaxWidth().padding(top = Dimens.SectionSpacing, start = 6.dp, end = 6.dp)) {
-        Text(item?.location.orEmpty(), color = secondary, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
-        Text(hints, color = secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (appearance.showLocation) {
+            Text(item?.location.orEmpty(), color = secondary, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
+        }
+
+        if (appearance.showShortcuts) {
+            val hints = remember(item) { hintsText(item) }
+            Text(hints, color = secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
+
+private fun hintsText(item: ProjectItem?): String =
+    hintsFor(item).joinToString(HINT_SEPARATOR) { hint ->
+        "${KeymapUtil.getKeystrokeText(hint.stroke)} ${ProjectSwitcherBundle.message(hint.labelKey)}"
+    }
 
 @Composable
 private fun SectionHeader(text: String) {

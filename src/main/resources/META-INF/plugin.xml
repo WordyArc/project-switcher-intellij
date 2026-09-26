@@ -26,8 +26,11 @@
             <li><kbd>Esc</kbd> — clear the search, then close the popup</li>
         </ul>
         The window modifiers apply only to recent projects; selecting an already open project
-        focuses its window. The footer of the popup shows the location of the selected project and the
-        keys that act on it.<br/>
+        focuses its window.<br/>
+        <br/>
+        Under <b>Settings | Tools | Project Switcher</b> the popup can show a search field above the list
+        instead of the speed search, and the location of the selected project and the keys that act on it
+        at the bottom.<br/>
         <br/>
         The shortcut can be changed under <b>Settings | Keymap | Switch Project</b>, and the action
         is also available from <b>Tools | Switch Project</b>.<br/>
@@ -54,6 +57,11 @@
                            bundle="messages.ProjectSwitcherBundle"
                            key="notification.group.name"/>
         <postStartupActivity implementation="dev.ashenarx.project.switcher.intellij.service.ProjectSwitcherWarmup"/>
+        <applicationConfigurable parentId="tools"
+                                 id="dev.ashenarx.project-switcher.settings"
+                                 instance="dev.ashenarx.project.switcher.intellij.settings.ProjectSwitcherConfigurable"
+                                 bundle="messages.ProjectSwitcherBundle"
+                                 key="settings.display.name"/>
     </extensions>
 
     <actions>
