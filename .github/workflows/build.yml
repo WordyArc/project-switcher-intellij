@@ -38,6 +38,8 @@ jobs:
           java-version: ${{ steps.java.outputs.version }}
 
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          cache-provider: basic
 
       - name: Build and test
         run: ./gradlew build buildPlugin verifyPluginStructure
@@ -79,6 +81,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
         with:
+          cache-provider: basic
           cache-read-only: true
 
       - name: Run the Plugin Verifier
