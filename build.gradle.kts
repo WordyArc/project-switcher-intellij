@@ -60,6 +60,15 @@ tasks.jar {
     }
 }
 
+tasks.verifyPluginSignature {
+    inputArchiveFile = tasks.signPlugin.flatMap { it.signedArchiveFile }
+}
+
+tasks.publishPlugin {
+    archiveFiles.setFrom(tasks.signPlugin.flatMap { it.signedArchiveFile })
+    dependsOn(tasks.verifyPluginSignature)
+}
+
 intellijPlatform {
     pluginConfiguration {
         ideaVersion {

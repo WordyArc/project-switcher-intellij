@@ -1,40 +1,215 @@
-# Signs and publishes the plugin to JetBrains Marketplace when a GitHub release is published.
-# Requires the PUBLISH_TOKEN, CERTIFICATE_CHAIN, PRIVATE_KEY and PRIVATE_KEY_PASSWORD secrets.
-# See https://plugins.jetbrains.com/docs/intellij/plugin-signing.html
-
 name: Release
 
 on:
-  release:
-    types: [ prereleased, released ]
+  push:
+    tags: [ 'v[0-9]+.[0-9]+.[0-9]+' ]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  release:
-    name: Publish plugin
+  check:
+    name: Check
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      commit: ${{ steps.check.outputs.commit }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+          persist-credentials: false
 
-      - uses: actions/setup-java@v5
-        with:
-          distribution: zulu
-          java-version: 25
-
-      - uses: gradle/actions/setup-gradle@v6
-
-      - name: Publish plugin
+      - name: Check the tagged commit
+        id: check
         env:
-          PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          fail() {
+            echo "::error::$1"
+            exit 1
+          }
+
+          version=${TAG#v}
+          [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "Tag $TAG is not v<major>.<minor>.<patch>."
+
+          plugin_version=$(sed -n 's/^pluginVersion *= *//p' gradle.properties)
+          [ "$plugin_version" = "$version" ] ||
+            fail "gradle.properties sets pluginVersion to '$plugin_version', not '$version'."
+
+          top_section=$(grep -m1 '^## ' CHANGELOG.md | sed 's/^## //')
+          [ "$top_section" = "$version" ] ||
+            fail "CHANGELOG.md starts with section '$top_section', not '$version'. That section becomes the change notes."
+
+          awk '/^## / { if (seen++) exit; next } seen && /^[[:space:]]*- / { found = 1 } END { exit !found }' CHANGELOG.md ||
+            fail "The $version section of CHANGELOG.md has no entries."
+
+          commit=$(git rev-parse HEAD)
+          git merge-base --is-ancestor "$commit" origin/main ||
+            fail "$TAG points at $commit, which is not on main. Push main, then re-run this workflow."
+
+          branch_commit=$(git rev-parse -q --verify "refs/remotes/origin/release/$version^{commit}" || true)
+          [ -z "$branch_commit" ] || [ "$branch_commit" = "$commit" ] ||
+            fail "Branch release/$version already exists at $branch_commit, not at $commit."
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build
+    needs: check
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: marketplace
+      url: https://plugins.jetbrains.com/plugin/33282-project-switcher
+    outputs:
+      certificate-subject: ${{ steps.certificate.outputs.subject }}
+      certificate-fingerprint: ${{ steps.certificate.outputs.fingerprint }}
+    steps:
+      - name: Check the secrets
+        env:
           CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+          PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+        run: |
+          missing=0
+          for name in CERTIFICATE_CHAIN PRIVATE_KEY PRIVATE_KEY_PASSWORD PUBLISH_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Secret $name is not set for the marketplace environment."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read the Java version
+        id: java
+        run: echo "version=$(sed -n 's/^javaVersion *= *//p' gradle.properties)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: zulu
+          java-version: ${{ steps.java.outputs.version }}
+
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          cache-disabled: true
+
+      - name: Sign the plugin
+        env:
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+        run: ./gradlew signPlugin verifyPluginSignature
+
+      - name: Describe the signing certificate
+        id: certificate
+        env:
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+        run: |
+          subject=$(openssl x509 -noout -subject -nameopt oneline,-space_eq <<< "$CERTIFICATE_CHAIN")
+          fingerprint=$(openssl x509 -noout -fingerprint -sha256 <<< "$CERTIFICATE_CHAIN")
+          echo "subject=${subject#subject=}" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=${fingerprint#*=}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the signed plugin
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: signed-plugin
+          path: build/distributions/*-signed.zip
+          if-no-files-found: error
+          overwrite: true
+
+      - name: Publish to JetBrains Marketplace
+        env:
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
         run: ./gradlew publishPlugin
 
-      - name: Attach the plugin to the release
+  release:
+    name: GitHub release
+    needs: [ check, publish ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: signed-plugin
+          path: dist
+
+      - name: Create the GitHub release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.event.release.tag_name }}" build/distributions/*.zip
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.check.outputs.version }}
+          CERTIFICATE_SUBJECT: ${{ needs.publish.outputs.certificate-subject }}
+          CERTIFICATE_FINGERPRINT: ${{ needs.publish.outputs.certificate-fingerprint }}
+        run: |
+          zips=(dist/*-signed.zip)
+          zip=${zips[0]}
+          notes=$(mktemp)
+
+          awk -v heading="## $VERSION" '
+            $0 == heading { collecting = 1; next }
+            collecting && /^## / { exit }
+            collecting { print }
+          ' CHANGELOG.md > "$notes"
+
+          cat >> "$notes" <<EOF
+
+          ---
+
+          \`${zip##*/}\` is signed with the author certificate
+          \`$CERTIFICATE_SUBJECT\`
+          (SHA-256 fingerprint \`$CERTIFICATE_FINGERPRINT\`).
+          Copies installed from JetBrains Marketplace carry an additional JetBrains signature.
+          EOF
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$zip" --clobber
+            gh release edit "$TAG" --title "$VERSION" --notes-file "$notes" --draft=false
+          else
+            gh release create "$TAG" "$zip" --title "$VERSION" --notes-file "$notes" --verify-tag
+          fi
+
+      - name: Create the release branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.check.outputs.version }}
+          COMMIT: ${{ needs.check.outputs.commit }}
+        run: |
+          branch=release/$VERSION
+          existing=$(gh api "repos/$GH_REPO/git/ref/heads/$branch" --jq .object.sha 2> /dev/null || true)
+          if [ -z "$existing" ]; then
+            gh api "repos/$GH_REPO/git/refs" -f ref="refs/heads/$branch" -f sha="$COMMIT" > /dev/null
+          elif [ "$existing" != "$COMMIT" ]; then
+            echo "::error::$branch already exists at $existing, not at the released commit $COMMIT."
+            exit 1
+          fi

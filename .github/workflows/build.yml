@@ -1,111 +1,92 @@
-# Builds and verifies the plugin, then prepares a draft GitHub release.
-# Publishing that draft triggers the Release workflow.
-
 name: Build
 
 on:
   push:
     branches: [ main ]
   pull_request:
+  workflow_dispatch:
+  workflow_call:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  JAVA_VERSION: 25
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.properties.outputs.version }}
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-java@v5
+      - name: Read the Java version
+        id: java
+        run: echo "version=$(sed -n 's/^javaVersion *= *//p' gradle.properties)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: zulu
-          java-version: ${{ env.JAVA_VERSION }}
+          java-version: ${{ steps.java.outputs.version }}
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
-      - name: Export properties
-        id: properties
-        run: |
-          VERSION="$(sed -n 's/^pluginVersion *= *//p' gradle.properties)"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Build and test
+        run: ./gradlew build buildPlugin verifyPluginStructure
 
-      - name: Build plugin
-        run: ./gradlew build buildPlugin
-
-      - name: Upload plugin artifact
-        uses: actions/upload-artifact@v7
+      - name: Upload the plugin
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: project-switcher-${{ steps.properties.outputs.version }}
           path: build/distributions/*.zip
+          archive: false
+          if-no-files-found: error
 
-      - name: Collect test results
+      - name: Upload test reports
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: tests-result
+          name: test-reports
           path: build/reports/tests
 
   verify:
-    name: Verify plugin
-    needs: [ build ]
+    name: Verify
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - name: Maximize build space
-        uses: jlumbroso/free-disk-space@main
+      - name: Free disk space for the IDEs under verification
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          tool-cache: false
-          large-packages: false
+          persist-credentials: false
 
-      - uses: actions/checkout@v7
+      - name: Read the Java version
+        id: java
+        run: echo "version=$(sed -n 's/^javaVersion *= *//p' gradle.properties)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: zulu
-          java-version: ${{ env.JAVA_VERSION }}
+          java-version: ${{ steps.java.outputs.version }}
 
-      - uses: gradle/actions/setup-gradle@v6
-
-      - name: Cache Plugin Verifier IDEs
-        uses: actions/cache@v6
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
         with:
-          path: ~/.pluginVerifier/ides
-          key: plugin-verifier-${{ hashFiles('build/listProductsReleases.txt') }}
+          cache-read-only: true
 
-      - name: Run Plugin Verifier
-        run: ./gradlew verifyPlugin -Dplugin.verifier.home.dir=~/.pluginVerifier
+      - name: Run the Plugin Verifier
+        run: ./gradlew verifyPlugin
 
-      - name: Collect Plugin Verifier results
-        if: always()
-        uses: actions/upload-artifact@v7
+      - name: Upload Plugin Verifier reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: pluginVerifier-result
+          name: plugin-verifier-reports
           path: build/reports/pluginVerifier
-
-  release-draft:
-    name: Release draft
-    if: github.event_name != 'pull_request'
-    needs: [ build, verify ]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Replace the previous draft
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.build.outputs.version }}
-        run: |
-          gh api repos/{owner}/{repo}/releases \
-            --jq '.[] | select(.draft == true) | .id' \
-            | xargs -r -I '{}' gh api -X DELETE repos/{owner}/{repo}/releases/{}
-
-          gh release create "v$VERSION" --draft --title "v$VERSION" --generate-notes
