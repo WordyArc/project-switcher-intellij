@@ -7,11 +7,14 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
 import com.intellij.testFramework.ExtensionTestUtil
+import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.common.timeoutRunBlocking
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.TestDisposable
+import com.intellij.testFramework.junit5.fixture.TestFixture
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import com.intellij.testFramework.junit5.fixture.tempPathFixture
+import com.intellij.testFramework.junit5.fixture.testFixture
 import com.intellij.util.SystemProperties
 import dev.ashenarx.project.switcher.intellij.model.ProjectItem
 import org.junit.jupiter.api.AfterEach
@@ -28,8 +31,8 @@ class ProjectCatalogTest {
 
     private companion object {
         // The sorting test needs this casing.
-        val zebra = projectFixture(tempPathFixture(subdirName = "Zebra"), openAfterCreation = true)
-        val apple = projectFixture(tempPathFixture(subdirName = "apple"), openAfterCreation = true)
+        val zebra = indexedProjectFixture("Zebra")
+        val apple = indexedProjectFixture("apple")
 
         val branchProviderEp =
             ExtensionPointName<RecentProjectsBranchesProvider>("com.intellij.recentProjectsBranchesProvider")
@@ -248,4 +251,10 @@ class ProjectCatalogTest {
         override fun getCurrentBranch(projectPath: String, nameIsDistinct: Boolean): String? =
             throw IllegalStateException("branch cache is broken")
     }
+}
+
+private fun indexedProjectFixture(name: String): TestFixture<Project> = testFixture {
+    val project = projectFixture(tempPathFixture(subdirName = name), openAfterCreation = true).init()
+    IndexingTestUtil.suspendUntilIndexesAreReady(project)
+    initialized(project) {}
 }
